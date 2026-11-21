@@ -22,7 +22,7 @@ button:focus-visible,select:focus-visible{outline:3px solid var(--fg);outline-of
 <div class="row">bpm <select id="bpm"><option>90</option><option selected>120</option><option>150</option><option>180</option><option>210</option><option>240</option></select>
  music <select id="vol"><option value="0">off</option><option value="0.2">low</option><option value="0.45" selected>mid</option><option value="0.8">high</option></select></div>
 <div class="row" id="aimopt">size <select id="sz"><option value="1">normal</option><option value="0.7">small</option><option value="1.4">large</option></select>
- approach <select id="pre"><option value="1200">slow</option><option value="900" selected>normal</option><option value="600">fast</option><option value="450">very fast</option></select>
+ approach <select id="pre"><option value="3">slow (3 beats)</option><option value="2" selected>normal (2 beats)</option><option value="1.5">fast (1.5 beats)</option><option value="1">very fast (1 beat)</option></select>
  pattern <select id="pat"><option value="mix">mixed</option><option value="jump">jumps</option><option value="stream">streams</option><option value="double">doubles</option><option value="sc">circle + slider</option><option value="stack">stacks</option><option value="tri">triangles</option><option value="back">back and forth</option></select></div>
 <div class="row" id="tkopt" hidden>pattern <select id="tpat"><option value="mix">mixed</option><option value="alt">alternating dkdk</option><option value="tri">triplets ddk / kkd</option><option value="burst">1/4 bursts (5)</option><option value="fc">finger control</option><option value="stream">1/4 streams</option><option value="mono">mono don/kat runs</option></select></div>
 <div class="row" id="oopt" hidden>path <select id="opat"><option value="mixed">mixed</option><option value="straight">straight</option><option value="square">90° turns</option><option value="zigzag">zigzag</option><option value="thirds">thirds (60° / 120°)</option><option value="swing">swing (0.75 / 1.25)</option></select></div>
@@ -56,7 +56,7 @@ function sched(now){if(!ac||!master.gain.value)return;while(st.ab*st.bl<now+200)
 function help(){const m=$('mode').value;$('aimopt').hidden=m!='aim';$('manopt').hidden=m=='aim'||m=='orbit';$('oopt').hidden=m!='orbit';$('tkopt').hidden=m!='taiko';$('msnapw').hidden=m=='taiko';
  $('help').textContent=m=='aim'?'hit circles on the beat (click, or hover + z/x)\nsliders: hold and follow the ball, arrows = bounce back\nspinners: hold and spin around the center\nesc ends the round':m=='orbit'?'press any key (or click) when the orbiting planet reaches the next tile\nthe turn angle sets the rhythm: straight = 1 beat, 90° = 1/2 or 3/2\nesc ends the round':m=='mania'?'press d f j k as notes reach the line, on the beat\nlong notes: hold until the tail reaches the line\nesc ends the round':'filled = don: f or j   ring = kat: d or k\nhit when the note reaches the left circle\nlong bars = drumroll: hit either key as fast as you can\nesc ends the round'}
 $('mode').onchange=help;
-const PRE={easy:[90,1.4,1200,'1',0.8,'jump',.7],normal:[120,1,900,'2',1.2,'mix',1],hard:[150,1,600,'2',1.2,'mix',1.2],insane:[180,.85,450,'4',1.8,'mix',1.4],expert:[210,.7,450,'4',1.8,'mix',1.6]};
+const PRE={easy:[90,1.4,3,'1',0.8,'jump',.7],normal:[120,1,2,'2',1.2,'mix',1],hard:[150,1,1.5,'2',1.2,'mix',1.2],insane:[180,.85,1,'4',1.8,'mix',1.4],expert:[210,.7,1,'4',1.8,'mix',1.6]};
 $('diff').onchange=()=>{const d=PRE[$('diff').value];if(!d)return;[$('bpm').value,$('sz').value,$('pre').value,$('msnap').value,$('spd').value,$('pat').value]=d.slice(0,6).map(String)};
 function adapt(ok){if(!st.ad)return;st.rec.push(ok?1:0);if(st.rec.length<16)return;const a=avg(st.rec);st.rec=[];
  if(a>=.93)st.lvl=Math.min(10,st.lvl+1);else if(a<.78)st.lvl=Math.max(1,st.lvl-1);st.lmax=Math.max(st.lmax,st.lvl);setLvl()}
@@ -64,7 +64,7 @@ function setLvl(){const L=st.lvl;st.sp=.55+.12*L;if(st.m=='aim')st.pre=Math.max(
 function show(t){$('res').textContent=t;menu.hidden=false;help()}
 function start(){audio();const m=$('mode').value,bl=60000/+$('bpm').value;menu.hidden=true;
  const dd=PRE[$('diff').value];st={m,bl,ad:$('diff').value=='adapt',lvl:3,lmax:3,rec:[],sp:dd?dd[6]:1,dens:1,trail:+$('trail').value,tr:[],bpm:+$('bpm').value,start:performance.now()+4*bl,dur:+$('dur').value*1000,ab:-4,pops:[],combo:0,maxc:0,errs:[]};
- if(m=='aim')Object.assign(st,{r:36*$('sz').value,pre:+$('pre').value,pre0:+$('pre').value,pat:$('pat').value,objs:[],nextT:0,lx:W/2,ly:H/2,j:[0,0,0,0],score:0,off:[],track:[],spins:[],mis:0,down:0,mx:W/2,my:H/2});
+ if(m=='aim')Object.assign(st,{r:36*$('sz').value,pre:Math.min(1800,Math.max(320,$('pre').value*bl)),pre0:Math.min(1800,Math.max(320,$('pre').value*bl)),pat:$('pat').value,objs:[],nextT:0,lx:W/2,ly:H/2,j:[0,0,0,0],score:0,off:[],track:[],spins:[],mis:0,down:0,mx:W/2,my:H/2});
  else if(m=='orbit')Object.assign(st,{opat:$('opat').value,tiles:[{x:0,y:0,T:0,ein:Math.PI}],k:1,j:[0,0,0,0],te:0,camx:0,camy:0,pops:[]})
  else if(m=='taiko')Object.assign(st,{tpat:$('tpat').value,spd:+$('spd').value*.8,notes:[],next:0,j:[0,0,0],held:[0,0,0,0],last:null,typ:[[0,0],[0,0]],rolls:0,rollMs:0})
  else Object.assign(st,{snap:+$('msnap').value,spd:+$('spd').value,notes:[],next:0,j:[0,0,0,0,0],held:[0,0,0,0],lastLane:-1,last:null,busy:[-1e9,-1e9,-1e9,-1e9],hold:[null,null,null,null],ht:[0,0]});if(st.ad)setLvl()}
@@ -73,23 +73,24 @@ const AW=[50,100,150];
 const clx=v=>Math.min(W-st.r-10,Math.max(st.r+10,v)),cly=v=>Math.min(H-st.r-10,Math.max(st.r+50,v));
 function near(a,b,from){const ang=(from??Math.random()*PI2),d=st.r*(a+Math.random()*(b-a))*(a>2?st.sp:1);return[clx(st.lx+Math.cos(ang)*d),cly(st.ly+Math.sin(ang)*d)]}
 function C(T,p){st.objs.push({k:'c',T,x:p[0],y:p[1]});st.lx=p[0];st.ly=p[1]}
-function S(T,p,ang,L,span,reps){L*=st.sp;const x1=clx(p[0]+Math.cos(ang)*L),y1=cly(p[1]+Math.sin(ang)*L),E=T+span*(reps+1),
+function S(T,p,ang,L,span,reps){L=st.r*4*(span/st.bl)*st.sp;const x1=clx(p[0]+Math.cos(ang)*L),y1=cly(p[1]+Math.sin(ang)*L),E=T+span*(reps+1),
  bend=Math.random()<.65?(Math.random()-.5)*1.6:0,qx=clx((p[0]+x1)/2-(y1-p[1])*bend*.5),qy=cly((p[1]+y1)/2+(x1-p[0])*bend*.5),o={k:'l',T,E,x:p[0],y:p[1],x1,y1,qx,qy,span,reps,tr:0,tot:0};
  o.lut=[];let len=0,px=o.x,py=o.y;for(let i=0;i<=40;i++){const[a,b]=bz(o,i/40);len+=hyp(a-px,b-py);o.lut.push([len,a,b]);px=a;py=b}
  st.objs.push(o);const ev=reps%2==0;st.lx=ev?x1:p[0];st.ly=ev?y1:p[1];return E}
+const pick=a=>a[Math.random()*a.length|0],rg=()=>pick([1,1,1,1,.5,.5,1.5,2]);
 function chunk(T){const b=st.bl,h=b/2,r=st.r,R=Math.random,pats=['jump','stream','double','sc','stack','tri','back','slider'];
  let P=st.pat=='mix'?pats[R()*pats.length|0]:st.pat;
  if(st.pat=='mix'&&R()<.08&&T>b*4&&(!st.dur||T+b*5<st.dur)){const E=T+b*4;st.objs.push({k:'s',T,E,x:W/2,y:H/2,rot:0,pa:null});st.lx=W/2;st.ly=H/2;return E+b}
- if(P=='jump'){let a=R()*PI2;for(let i=0;i<4+(R()*5|0);i++){C(T,near(5,7,a));a+=Math.PI*(.6+R()*.8);T+=b}return T}
- if(P=='stream'){let a=R()*PI2;for(let i=0;i<8+(R()*9|0);i++){C(T,near(.9,1.3,a));a+=(R()-.5)*.7;if(st.lx<r*3||st.lx>W-r*3||st.ly<r*3+50||st.ly>H-r*3)a+=Math.PI;T+=h}return T+h}
- if(P=='double'){for(let i=0;i<3+(R()*3|0);i++){C(T,near(4,6));const a=R()*PI2;C(T+h,near(1.4,1.8,a));T+=b*1.5}return T+h}
+ if(P=='jump'){let a=R()*PI2;for(let i=0;i<4+(R()*5|0);i++){C(T,near(5,7,a));a+=Math.PI*(.6+R()*.8);T+=b*rg()}return T}
+ if(P=='stream'){let a=R()*PI2;for(let i=0;i<8+(R()*9|0);i++){C(T,near(.9,1.3,a));a+=(R()-.5)*.7;if(st.lx<r*3||st.lx>W-r*3||st.ly<r*3+50||st.ly>H-r*3)a+=Math.PI;T+=h*(R()<.1?2:1)}return T+h}
+ if(P=='double'){for(let i=0;i<3+(R()*3|0);i++){C(T,near(4,6));const a=R()*PI2;C(T+h,near(1.4,1.8,a));T+=b*pick([1,1.5,1.5,2,2.5])}return T+h}
  if(P=='sc'){for(let i=0;i<2+(R()*2|0);i++){if(R()<.5){C(T,near(3,5));const a=R()*PI2;const p=near(1.5,2,a);T=S(T+h,p,a+(R()-.5),r*(3+R()*2),b,0)+h;C(T,near(1.5,2.2))}
   else{const p=near(3,5);T=S(T,p,R()*PI2,r*(3+R()*2),b,R()<.5?1:0)+h;st.lx=p[0];st.ly=p[1];C(T,near(1.5,2))}T+=b}return T}
- if(P=='stack'){for(let i=0;i<2+(R()*3|0);i++){const p=near(4,6);for(let k=0;k<3;k++)C(T+k*h,p);T+=b*2}return T}
- if(P=='tri'){for(let i=0;i<3;i++){const p=near(4,6),a=R()*PI2,s=r*2.2;for(let k=0;k<3;k++)C(T+k*h,[clx(p[0]+Math.cos(a+k*2.094)*s),cly(p[1]+Math.sin(a+k*2.094)*s)]);T+=b*2}return T}
- if(P=='back'){const p0=near(3,4),p1=near(4,6);for(let i=0;i<6;i++){C(T,i%2?p1:p0);T+=h*(st.bpm>170?2:1)}return T+h}
+ if(P=='stack'){for(let i=0;i<2+(R()*3|0);i++){const p=near(4,6);const n=pick([2,3,3,4]);for(let k=0;k<n;k++)C(T+k*h,p);T+=h*n+b*pick([.5,1,1])}return T}
+ if(P=='tri'){for(let i=0;i<3;i++){const p=near(4,6),a=R()*PI2,s=r*2.2;for(let k=0;k<3;k++)C(T+k*h,[clx(p[0]+Math.cos(a+k*2.094)*s),cly(p[1]+Math.sin(a+k*2.094)*s)]);T+=b*pick([1.5,2,2,2.5])}return T}
+ if(P=='back'){const p0=near(3,4),p1=near(4,6);for(let i=0;i<6;i++){C(T,i%2?p1:p0);T+=h*(st.bpm>170?2:1)*(R()<.25?2:1)}return T+h}
  {const p=near(3,5);return S(T,p,R()*PI2,r*(3+R()*3),R()<.5?h:b,R()<.45?1+(R()*2|0):0)+b}}
-function gen(now){while(st.nextT<now+st.pre+200&&(!st.dur||st.nextT<st.dur-300))st.nextT=chunk(st.nextT)}
+function gen(now){while(st.nextT<now+st.pre+200&&(!st.dur||st.nextT<st.dur-300))st.nextT=chunk(st.nextT)+st.bl*pick([0,0,.5,1])}
 function award(v,x,y){adapt(v>=100);st.j[[300,100,50,0].indexOf(v)]++;if(v){st.combo++;st.maxc=Math.max(st.maxc,st.combo);st.score+=Math.round(v*(1+st.combo/25));hitSound()}else st.combo=0;st.pops.push({x,y,v,t:performance.now()})}
 const grade=e=>{const a=Math.abs(e);return a<=AW[0]?300:a<=AW[1]?100:a<=AW[2]?50:0};
 function press(now){st.down++;const o=st.objs.find(o=>!o.hd&&o.k!='s');if(!o)return;
@@ -193,27 +194,35 @@ function taikoEnd(el){const a=tAcc(),k=`bestTaiko${st.bpm}${st.tpat}`,b=ls.get(k
  return `TAIKO RESULTS @ ${st.bpm} bpm, ${st.tpat}${nb?'  (new best!)':''}\n\naccuracy   ${a.toFixed(2)}%   best ${(Math.max(b,nb?a*100:0)/100).toFixed(2)}%\ngreat ${st.j[0]}  ok ${st.j[1]}  miss ${st.j[2]}\ndon hit    ${pc(st.typ[0])}   kat hit ${pc(st.typ[1])}\ndrumroll   ${st.rolls} hits${st.rollMs?` (${(st.rolls/(st.rollMs/1000)).toFixed(1)}/s)`:''}\nmax combo  ${st.maxc}\nunstable   ${(sd(st.errs)*10).toFixed(0)} UR\nmean error ${m.toFixed(1)} ms (${m<0?'early':'late'})\nduration   ${(Math.max(0,el)/1000).toFixed(0)}s\n`}
 // ---------- orbit (adofai-style) ----------
 const OL=70,OW=[35,70,150],OPAT={straight:[1],square:[1,.5,1.5],mixed:[1,1,.5,1.5,.75,1.25,.5,2],zigzag:[.5,1.5],thirds:[1,2/3,4/3,1/3],swing:[.75,1.25,1]};
-function oadd(){const L=st.tiles[st.tiles.length-1],P=OPAT[st.opat];let b=st.opat=='zigzag'?(st.tiles.length%2?.5:1.5):st.opat=='swing'?(st.tiles.length%2?.75:1.25):P[Math.random()*P.length|0];
- if(st.ad&&st.dens<.8&&b<.75)b=1;L.d=L.ein+b*Math.PI;st.tiles.push({x:L.x+OL*Math.cos(L.d),y:L.y+OL*Math.sin(L.d),T:L.T+b*st.bl,ein:L.d+Math.PI,b})}
+function oadd(){const L=st.tiles[st.tiles.length-1],P=OPAT[st.opat],n=st.tiles.length,fixed=st.opat=='zigzag'?(n%2?.5:1.5):st.opat=='swing'?(n%2?.75:1.25):0;
+ const free=b=>{const d=L.ein+b*Math.PI,x=L.x+OL*Math.cos(d),y=L.y+OL*Math.sin(d);for(let i=Math.max(0,n-60);i<n-1;i++)if(hyp(st.tiles[i].x-x,st.tiles[i].y-y)<OL*.9)return 0;return 1};
+ let b=fixed;if(!b){const c=[...P].sort(()=>Math.random()-.5);b=c.find(free)??1;if(st.ad&&st.dens<.8&&b<.75&&free(1))b=1}
+ L.d=L.ein+b*Math.PI;st.tiles.push({x:L.x+OL*Math.cos(L.d),y:L.y+OL*Math.sin(L.d),T:L.T+b*st.bl,ein:L.d+Math.PI,b})}
+const FR={0.5:'½',1.5:'1½',0.75:'¾',1.25:'1¼',2:'2'},frac=b=>FR[b]||(Math.abs(b-1/3)<.01?'⅓':Math.abs(b-2/3)<.01?'⅔':Math.abs(b-4/3)<.01?'1⅓':String(+b.toFixed(2)));
 function ojudge(i,e){st.j[i]++;if(i<3){st.combo++;st.maxc=Math.max(st.maxc,st.combo);st.errs.push(e);hitSound()}else st.combo=0;adapt(i==0);
  const t=st.tiles[st.k];st.pops.push({x:t.x,y:t.y,v:['perfect',e<0?'early':'late',e<0?'way early':'way late','miss'][i]+(i==0?'':''),t:performance.now(),o:1});st.k++}
 function opress(now){while(st.tiles.length<st.k+2)oadd();const e=now-st.tiles[st.k].T;if(e<-OW[2]){st.te++;return}const a=Math.abs(e);ojudge(a<=OW[0]?0:a<=OW[1]?1:2,e)}
 function oAcc(){const j=st.j,n=j[0]+j[1]+j[2]+j[3];return n?(j[0]*100+j[1]*60+j[2]*30)/n:100}
 function orbitDraw(now){while(st.tiles.length<st.k+40)oadd();
  while(now>st.tiles[st.k].T+OW[2])ojudge(3,OW[2]);
- const pv=st.tiles[st.k-1],ang=pv.ein+Math.PI*Math.max(0,now-pv.T)/st.bl,px=pv.x+OL*Math.cos(ang),py=pv.y+OL*Math.sin(ang);
- st.camx+=((pv.x+px)/2-st.camx)*.12;st.camy+=((pv.y+py)/2-st.camy)*.12;const ox=W/2-st.camx,oy=H/2-st.camy;
- cx.save();cx.translate(ox,oy);cx.lineJoin=cx.lineCap='round';
- const a0=Math.max(0,st.k-6),a1=Math.min(st.tiles.length,st.k+35);
- for(const [w,col] of [[34,'#000'],[28,'#fff']]){cx.strokeStyle=col;cx.lineWidth=w;cx.beginPath();for(let i=a0;i<a1;i++){const t=st.tiles[i];i==a0?cx.moveTo(t.x,t.y):cx.lineTo(t.x,t.y)}cx.stroke()}
- for(let i=a0;i<a1;i++){const t=st.tiles[i];cx.globalAlpha=i<st.k?.25:1;cx.fillStyle='#000';
-  if(t.b&&t.b!=1){cx.font='11px '+F;cx.textAlign='center';cx.fillText(+t.b.toFixed(2),t.x,t.y+4)}else{cx.beginPath();cx.arc(t.x,t.y,2.5,0,PI2);cx.fill()}}
- cx.globalAlpha=1;const nt=st.tiles[st.k];cx.lineWidth=2;cx.strokeStyle='#000';cx.strokeRect(nt.x-15,nt.y-15,30,30);
- cx.globalAlpha=.12;cx.beginPath();cx.arc(pv.x,pv.y,OL,0,PI2);cx.stroke();cx.globalAlpha=1;
- cx.fillStyle='#000';cx.beginPath();cx.arc(pv.x,pv.y,11,0,PI2);cx.fill();
- cx.fillStyle='#fff';cx.lineWidth=3;cx.beginPath();cx.arc(px,py,11,0,PI2);cx.fill();cx.stroke();
+ const pv=st.tiles[st.k-1],nt=st.tiles[st.k],ang=pv.ein+Math.PI*Math.max(0,now-pv.T)/st.bl,px=pv.x+OL*Math.cos(ang),py=pv.y+OL*Math.sin(ang);
+ st.camx+=((pv.x+nt.x)/2-st.camx)*.1;st.camy+=((pv.y+nt.y)/2-st.camy)*.1;
+ cx.save();cx.translate(W/2-st.camx,H/2-st.camy);cx.lineJoin=cx.lineCap='round';
+ const a0=Math.max(0,st.k-3),a1=Math.min(st.tiles.length,st.k+18);
+ // faint path line
+ cx.strokeStyle='#000';cx.lineWidth=2;cx.globalAlpha=.18;cx.beginPath();for(let i=a0;i<a1;i++){const t=st.tiles[i];i==a0?cx.moveTo(t.x,t.y):cx.lineTo(t.x,t.y)}cx.stroke();
+ // tiles, far ones first
+ for(let i=a1-1;i>=a0;i--){const t=st.tiles[i],tgt=i==st.k,dir=i>0?Math.atan2(t.y-st.tiles[i-1].y,t.x-st.tiles[i-1].x):0;
+  cx.globalAlpha=i<st.k?.2:Math.max(.3,1-(i-st.k)/18);cx.save();cx.translate(t.x,t.y);cx.rotate(dir);
+  const s=tgt?34:28;cx.fillStyle=tgt?'#000':'#fff';cx.strokeStyle='#000';cx.lineWidth=2;cx.beginPath();cx.rect(-s/2,-s/2,s,s);cx.fill();cx.stroke();cx.restore();
+  if(i>=st.k&&t.b!=1){cx.fillStyle=tgt?'#fff':'#000';cx.font='bold 13px '+F;cx.textAlign='center';cx.fillText(frac(t.b),t.x,t.y+5)}}
+ cx.globalAlpha=1;
+ // sweep guide: remaining rotation to the target tile
+ const end=pv.ein+nt.b*Math.PI;if(end>ang){cx.setLineDash([4,6]);cx.lineWidth=2;cx.strokeStyle='#000';cx.beginPath();cx.arc(pv.x,pv.y,OL,ang,end);cx.stroke();cx.setLineDash([])}
+ cx.fillStyle='#000';cx.beginPath();cx.arc(pv.x,pv.y,12,0,PI2);cx.fill();
+ cx.fillStyle='#fff';cx.lineWidth=4;cx.beginPath();cx.arc(px,py,12,0,PI2);cx.fill();cx.stroke();
  st.pops=st.pops.filter(p=>performance.now()-p.t<600);cx.textAlign='center';cx.font='bold 15px '+F;
- for(const p of st.pops){const a=(performance.now()-p.t)/600;cx.globalAlpha=1-a;cx.fillStyle='#000';cx.fillText(p.v,p.x,p.y-26-a*14)}
+ for(const p of st.pops){const a=(performance.now()-p.t)/600;cx.globalAlpha=1-a;cx.fillStyle='#000';cx.fillText(p.v,p.x,p.y-30-a*14)}
  cx.restore();cx.globalAlpha=1;
  return `acc ${oAcc().toFixed(2)}%  combo ${st.combo}  perfect:${st.j[0]} early/late:${st.j[1]} way off:${st.j[2]} miss:${st.j[3]}  UR ${(sd(st.errs)*10).toFixed(0)}`}
 function orbitEnd(el){const a=oAcc(),m=avg(st.errs);
