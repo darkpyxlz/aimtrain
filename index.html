@@ -53,7 +53,7 @@ function hitSound(){if(ac&&master.gain.value)noise(ac.currentTime,.03,.5,3000)}
 function sched(now){if(!ac||!master.gain.value)return;while(st.ab*st.bl<now+200){const tt=st.ab*st.bl;if(tt>now-30)beat(st.ab,ac.currentTime+Math.max(0,(tt-now)/1000),st.bl/1000);st.ab++}}
 // ---------- menu ----------
 function help(){const m=$('mode').value;$('aimopt').hidden=m!='aim';$('manopt').hidden=m=='aim';$('tkopt').hidden=m!='taiko';$('msnapw').hidden=m=='taiko';
- $('help').textContent=m=='aim'?'hit circles on the beat (click, or hover + z/x)\nsliders: hold and follow the ball, arrows = bounce back\nspinners: hold and spin around the center\nesc ends the round':m=='mania'?'press d f j k as notes reach the line, on the beat\nesc ends the round':'filled = don: f or j   ring = kat: d or k\nhit when the note reaches the left circle\nesc ends the round'}
+ $('help').textContent=m=='aim'?'hit circles on the beat (click, or hover + z/x)\nsliders: hold and follow the ball, arrows = bounce back\nspinners: hold and spin around the center\nesc ends the round':m=='mania'?'press d f j k as notes reach the line, on the beat\nlong notes: hold until the tail reaches the line\nesc ends the round':'filled = don: f or j   ring = kat: d or k\nhit when the note reaches the left circle\nlong bars = drumroll: hit either key as fast as you can\nesc ends the round'}
 $('mode').onchange=help;
 const PRE={easy:[90,1.4,1200,'1',0.8,'jump',.7],normal:[120,1,900,'2',1.2,'mix',1],hard:[150,1,600,'2',1.2,'mix',1.2],insane:[180,.85,450,'4',1.8,'mix',1.4],expert:[210,.7,450,'4',1.8,'mix',1.6]};
 $('diff').onchange=()=>{const d=PRE[$('diff').value];if(!d)return;[$('bpm').value,$('sz').value,$('pre').value,$('msnap').value,$('spd').value,$('pat').value]=d.slice(0,6).map(String)};
@@ -64,8 +64,8 @@ function show(t){$('res').textContent=t;menu.hidden=false;help()}
 function start(){audio();const m=$('mode').value,bl=60000/+$('bpm').value;menu.hidden=true;
  const dd=PRE[$('diff').value];st={m,bl,ad:$('diff').value=='adapt',lvl:3,lmax:3,rec:[],sp:dd?dd[6]:1,dens:1,trail:+$('trail').value,tr:[],bpm:+$('bpm').value,start:performance.now()+4*bl,dur:+$('dur').value*1000,ab:-4,pops:[],combo:0,maxc:0,errs:[]};
  if(m=='aim')Object.assign(st,{r:36*$('sz').value,pre:+$('pre').value,pre0:+$('pre').value,pat:$('pat').value,objs:[],nextT:0,lx:W/2,ly:H/2,j:[0,0,0,0],score:0,off:[],track:[],spins:[],mis:0,down:0,mx:W/2,my:H/2});
- else if(m=='taiko')Object.assign(st,{tpat:$('tpat').value,spd:+$('spd').value*.8,notes:[],next:0,j:[0,0,0],held:[0,0,0,0],last:null,typ:[[0,0],[0,0]]})
- else Object.assign(st,{snap:+$('msnap').value,spd:+$('spd').value,notes:[],next:0,j:[0,0,0,0,0],held:[0,0,0,0],lastLane:-1,last:null});if(st.ad)setLvl()}
+ else if(m=='taiko')Object.assign(st,{tpat:$('tpat').value,spd:+$('spd').value*.8,notes:[],next:0,j:[0,0,0],held:[0,0,0,0],last:null,typ:[[0,0],[0,0]],rolls:0,rollMs:0})
+ else Object.assign(st,{snap:+$('msnap').value,spd:+$('spd').value,notes:[],next:0,j:[0,0,0,0,0],held:[0,0,0,0],lastLane:-1,last:null,busy:[-1e9,-1e9,-1e9,-1e9],hold:[null,null,null,null],ht:[0,0]});if(st.ad)setLvl()}
 // ---------- aim (osu-style) ----------
 const AW=[50,100,150];
 const clx=v=>Math.min(W-st.r-10,Math.max(st.r+10,v)),cly=v=>Math.min(H-st.r-10,Math.max(st.r+50,v));
@@ -130,16 +130,19 @@ function aimAcc(){const j=st.j,n=j[0]+j[1]+j[2]+j[3];return n?(300*j[0]+100*j[1]
 function aimEnd(){const a=aimAcc(),k='bestAim'+st.bpm+st.pat,b=ls.get(k),nb=st.score>b;if(nb)ls.set(k,st.score);const m=avg(st.errs);
  return `AIM RESULTS @ ${st.bpm} bpm, ${st.pat}${nb?'  (new best!)':''}\n\nscore       ${st.score}   best ${Math.max(b,st.score)}\naccuracy    ${a.toFixed(2)}%\n300 ${st.j[0]}  100 ${st.j[1]}  50 ${st.j[2]}  miss ${st.j[3]}\nmax combo   ${st.maxc}x\nunstable    ${(sd(st.errs)*10).toFixed(0)} UR\nmean error  ${m.toFixed(1)} ms (${m<0?'early':'late'})\noff-center  ${(avg(st.off)*100).toFixed(0)}% of radius\nslider hold ${st.track.length?(avg(st.track)*100).toFixed(0)+'%':'-'}\nspinner     ${st.spins.length?avg(st.spins).toFixed(0)+' rpm':'-'}\nmisclicks   ${st.mis}\n`}
 // ---------- mania ----------
-const KEYS='dfjk',MW=[[40,300],[80,200],[110,100],[140,50]],MISS=160,LW=70,JN=['300','200','100','50','miss'];
+const KEYS='dfjk',MW=[[40,300],[80,200],[110,100],[140,50]],MISS=160,LW=70,JN=['300','200','100','50','miss','released early'];
 function mjudge(i,err){adapt(i<2);st.j[i]++;if(i<4){st.combo++;st.maxc=Math.max(st.maxc,st.combo);st.errs.push(err);hitSound()}else st.combo=0;st.last={i,err,t:performance.now()}}
-function mpress(l,now){let best=null;for(const n of st.notes)if(n.l==l&&!n.done&&Math.abs(now-n.t)<=MISS&&(!best||n.t<best.t))best=n;
- if(!best)return;best.done=1;const e=now-best.t,a=Math.abs(e);mjudge(a>MW[3][0]?4:MW.findIndex(w=>a<=w[0]),e)}
+function mpress(l,now){let best=null;for(const n of st.notes)if(n.l==l&&!n.done&&!n.hit&&Math.abs(now-n.t)<=MISS&&(!best||n.t<best.t))best=n;
+ if(!best)return;const e=now-best.t,a=Math.abs(e),i=a>MW[3][0]?4:MW.findIndex(w=>a<=w[0]);mjudge(i,e);
+ if(best.e&&i<4){best.hit=1;st.hold[l]=best}else{best.done=1;if(best.e)st.ht[1]++}}
+function holdEnd(n,ok){st.hold[n.l]=null;if(ok){st.ht[0]++;st.combo++;st.maxc=Math.max(st.maxc,st.combo)}else{st.ht[1]++;st.combo=0;st.last={i:5,err:0,t:performance.now()}}}
 function mAcc(){const j=st.j,n=j.reduce((a,b)=>a+b,0);return n?(j[0]*300+j[1]*200+j[2]*100+j[3]*50)/(n*3):100}
 function maniaDraw(now){const lx=W/2-LW*2,hy=H-110,px=st.spd,u=st.bl/st.snap;
  while(st.next<now+H/px&&(!st.dur||st.next<st.dur-300)){const T=st.next;st.next+=u;if(Math.random()<.2+(1-st.dens))continue;
-  let l;do l=Math.random()*4|0;while(l==st.lastLane&&Math.random()<.7);st.lastLane=l;st.notes.push({l,t:T});
-  if(T%st.bl<1&&Math.random()<.2)st.notes.push({l:(l+1+(Math.random()*3|0))%4,t:T})}
- for(const n of st.notes)if(!n.done&&now-n.t>MISS){n.done=1;mjudge(4,MISS)}
+  const fr=[0,1,2,3].filter(i=>st.busy[i]<T);if(!fr.length)continue;let l;do l=fr[Math.random()*fr.length|0];while(l==st.lastLane&&fr.length>1&&Math.random()<.7);st.lastLane=l;
+  const nt={l,t:T};if(Math.random()<.15&&(!st.dur||T+st.bl*2<st.dur)){nt.e=T+st.bl*(1+(Math.random()*2|0))*(Math.random()<.5?.5:1);st.busy[l]=nt.e+u*.5}else st.busy[l]=T;st.notes.push(nt);
+  const f2=fr.filter(i=>i!=l);if(T%st.bl<1&&f2.length&&Math.random()<.2){const l2=f2[Math.random()*f2.length|0];st.busy[l2]=T;st.notes.push({l:l2,t:T})}}
+ for(const n of st.notes){if(n.hit){if(now>=n.e){n.done=1;holdEnd(n,1)}}else if(!n.done&&now-n.t>MISS){n.done=1;mjudge(4,MISS);if(n.e)st.ht[1]++}}
  st.notes=st.notes.filter(n=>!n.done);
  cx.strokeStyle='#000';cx.lineWidth=2;
  for(let i=0;i<=4;i++){cx.beginPath();cx.moveTo(lx+i*LW,0);cx.lineTo(lx+i*LW,H);cx.stroke()}
@@ -148,39 +151,44 @@ function maniaDraw(now){const lx=W/2-LW*2,hy=H-110,px=st.spd,u=st.bl/st.snap;
  for(let i=0;i<4;i++){const on=st.held[i];cx.fillStyle=on?'#000':'#fff';cx.fillRect(lx+i*LW+6,hy+6,LW-12,30);cx.strokeRect(lx+i*LW+6,hy+6,LW-12,30);
   cx.fillStyle=on?'#fff':'#000';cx.fillText(KEYS[i].toUpperCase(),lx+i*LW+LW/2,hy+25)}
  cx.lineWidth=4;cx.beginPath();cx.moveTo(lx,hy);cx.lineTo(lx+4*LW,hy);cx.stroke();
- cx.fillStyle='#000';for(const n of st.notes){const y=hy-(n.t-now)*px;if(y>-20)cx.fillRect(lx+n.l*LW+4,y-10,LW-8,14)}
+ for(const n of st.notes){let y=hy-(n.t-now)*px;const X=lx+n.l*LW;if(n.e){const ye=hy-(n.e-now)*px;if(n.hit)y=hy;if(y>-20){cx.fillStyle=n.hit?'#ddd':'#fff';cx.lineWidth=2;cx.fillRect(X+14,ye,LW-28,y-ye);cx.strokeRect(X+14,ye,LW-28,y-ye);cx.fillStyle='#000';cx.fillRect(X+4,ye-4,LW-8,5)}}
+  cx.fillStyle='#000';if(y>-20)cx.fillRect(X+4,y-10,LW-8,14)}
  const L=st.last;if(L&&performance.now()-L.t<400){cx.font='bold 22px '+F;cx.globalAlpha=1-(performance.now()-L.t)/400;
   cx.fillText(JN[L.i]+(L.i>0&&L.i<4?(L.err<0?' early':' late'):''),W/2,hy-160);cx.globalAlpha=1;cx.font='14px '+F}
  const bx=W/2,by=hy+60;cx.fillRect(bx-MISS,by,MISS*2,1);cx.fillRect(bx-1,by-8,2,16);
  for(const e of st.errs.slice(-30))cx.fillRect(bx+e-1,by-6,2,12);
- return `acc ${mAcc().toFixed(2)}%  combo ${st.combo}  ${JN.map((n,i)=>n+':'+st.j[i]).join(' ')}  UR ${(sd(st.errs)*10).toFixed(0)}`}
+ return `acc ${mAcc().toFixed(2)}%  combo ${st.combo}  ${JN.slice(0,5).map((n,i)=>n+':'+st.j[i]).join(' ')}  UR ${(sd(st.errs)*10).toFixed(0)}`}
 function maniaEnd(el){const a=mAcc(),k=`bestMania${st.bpm}_${st.snap}`,b=ls.get(k),hits=st.j[0]+st.j[1]+st.j[2]+st.j[3],nb=hits>20&&a*100>b;if(nb)ls.set(k,Math.round(a*100));const m=avg(st.errs);
- return `MANIA RESULTS @ ${st.bpm} bpm 1/${st.snap}${nb?'  (new best!)':''}\n\naccuracy   ${a.toFixed(2)}%   best ${(Math.max(b,nb?a*100:0)/100).toFixed(2)}%\n300 ${st.j[0]}  200 ${st.j[1]}  100 ${st.j[2]}  50 ${st.j[3]}  miss ${st.j[4]}\nmax combo  ${st.maxc}\nunstable   ${(sd(st.errs)*10).toFixed(0)} UR\nmean error ${m.toFixed(1)} ms (${m<0?'early':'late'})\nduration   ${(Math.max(0,el)/1000).toFixed(0)}s\n`}
+ return `MANIA RESULTS @ ${st.bpm} bpm 1/${st.snap}${nb?'  (new best!)':''}\n\naccuracy   ${a.toFixed(2)}%   best ${(Math.max(b,nb?a*100:0)/100).toFixed(2)}%\n300 ${st.j[0]}  200 ${st.j[1]}  100 ${st.j[2]}  50 ${st.j[3]}  miss ${st.j[4]}\nholds      ${st.ht[0]} / ${st.ht[0]+st.ht[1]} held to the end\nmax combo  ${st.maxc}\nunstable   ${(sd(st.errs)*10).toFixed(0)} UR\nmean error ${m.toFixed(1)} ms (${m<0?'early':'late'})\nduration   ${(Math.max(0,el)/1000).toFixed(0)}s\n`}
 // ---------- taiko ----------
 const TW=[35,80],TMISS=110,TP={alt:['dkdk','kdkd'],tri:['ddk','kkd','dkk','kdd'],burst:['ddddd','kkkkk','dkdkd','ddkdd','kdddk'],fc:['kddkdd','dkkdkk','kkdkkd','ddkkdd'],stream:['dkdkddkdkk','ddkkddkd','kdddkkdk'],mono:['dddd','kkkk','ddddddd','kkkkkk']};
 function tgen(now){const q=st.bl/4;while(st.next<now+W/st.spd&&(!st.dur||st.next<st.dur-300)){
+ if(Math.random()<.1*st.dens&&(!st.dur||st.next+st.bl*3<st.dur)){const len=st.bl*(1+(Math.random()*2|0));st.notes.push({t:st.next,e:st.next+len,roll:1});st.rollMs+=len;st.next+=len+st.bl;continue}
  const P=st.tpat=='mix'?Object.keys(TP)[Math.random()*6|0]:st.tpat,list=TP[P],str=list[Math.random()*list.length|0],
  step=(P=='burst'||P=='stream')?q:q*2;
  if(Math.random()>st.dens){st.next+=st.bl;continue}for(const ch of str){st.notes.push({t:st.next,k:ch=='k'?1:0});st.next+=step}
  st.next=Math.ceil((st.next+st.bl/2)/(st.bl/2))*(st.bl/2)}}
 function tjudge(n,i,e){adapt(i==0);st.j[i]++;if(n)st.typ[n.k][i<2?0:1]++;if(i<2){st.combo++;st.maxc=Math.max(st.maxc,st.combo);st.errs.push(e);hitSound()}else st.combo=0;st.last={i,t:performance.now()}}
-function tpress(k,now){let n=null;for(const m of st.notes)if(!m.done&&Math.abs(now-m.t)<=TMISS&&(!n||m.t<n.t))n=m;if(!n)return;
+function tpress(k,now){const rl=st.notes.find(m=>m.roll&&now>=m.t-30&&now<=m.e);if(rl){st.rolls++;hitSound();st.last={i:3,t:performance.now()};return}
+ let n=null;for(const m of st.notes)if(!m.done&&!m.roll&&Math.abs(now-m.t)<=TMISS&&(!n||m.t<n.t))n=m;if(!n)return;
  n.done=1;const e=now-n.t,a=Math.abs(e);tjudge(n,n.k!=k?2:a<=TW[0]?0:a<=TW[1]?1:2,e)}
 function tAcc(){const j=st.j,n=j[0]+j[1]+j[2];return n?(j[0]+j[1]*.5)/n*100:100}
 function taikoDraw(now){tgen(now);const hx=Math.min(160,W*.2),y=H/2,R0=26;
- for(const n of st.notes)if(!n.done&&now-n.t>TMISS){n.done=1;tjudge(n,2,TMISS)}st.notes=st.notes.filter(n=>!n.done);
+ for(const n of st.notes)if(!n.done&&(n.roll?now>n.e:now-n.t>TMISS)){n.done=1;if(!n.roll)tjudge(n,2,TMISS)}st.notes=st.notes.filter(n=>!n.done);
  cx.strokeStyle='#000';cx.lineWidth=2;cx.strokeRect(-2,y-50,W+4,100);
  for(let b=Math.ceil(now/st.bl)*st.bl;b<now+W/st.spd;b+=st.bl){const x=hx+(b-now)*st.spd;cx.globalAlpha=.15;cx.fillStyle='#000';cx.fillRect(x,y-50,1,100);cx.globalAlpha=1}
  cx.lineWidth=3;cx.beginPath();cx.arc(hx,y,R0+6,0,PI2);cx.stroke();
  const dn=st.held[1]||st.held[2],kt=st.held[0]||st.held[3];if(dn){cx.globalAlpha=.25;cx.fillStyle='#000';cx.beginPath();cx.arc(hx,y,R0+6,0,PI2);cx.fill();cx.globalAlpha=1}
  if(kt){cx.lineWidth=6;cx.beginPath();cx.arc(hx,y,R0+14,0,PI2);cx.stroke()}
- for(let i=st.notes.length-1;i>=0;i--){const n=st.notes[i],x=hx+(n.t-now)*st.spd;if(x>W+40)continue;cx.beginPath();cx.arc(x,y,R0,0,PI2);
+ for(let i=st.notes.length-1;i>=0;i--){const n=st.notes[i],x=hx+(n.t-now)*st.spd;if(x>W+40)continue;if(n.roll){const xe=hx+(n.e-now)*st.spd,xs=Math.max(x,hx),hh=R0*.8;cx.fillStyle='#fff';cx.lineWidth=3;cx.beginPath();cx.arc(xs,y,hh,Math.PI/2,Math.PI*1.5);cx.lineTo(xe,y-hh);cx.arc(xe,y,hh,-Math.PI/2,Math.PI/2);cx.closePath();cx.fill();cx.stroke();
+   cx.fillStyle='#000';for(let d=xs+10;d<xe;d+=16){cx.beginPath();cx.arc(d,y,3,0,PI2);cx.fill()}continue}
+  cx.beginPath();cx.arc(x,y,R0,0,PI2);
   if(n.k){cx.fillStyle='#fff';cx.fill();cx.lineWidth=7;cx.stroke()}else{cx.fillStyle='#000';cx.fill()}}
- const L=st.last;cx.textAlign='center';if(L&&performance.now()-L.t<400){cx.font='bold 22px '+F;cx.fillStyle='#000';cx.globalAlpha=1-(performance.now()-L.t)/400;cx.fillText(['great','ok','miss'][L.i],hx,y-70);cx.globalAlpha=1;cx.font='14px '+F}
+ const L=st.last;cx.textAlign='center';if(L&&performance.now()-L.t<400){cx.font='bold 22px '+F;cx.fillStyle='#000';cx.globalAlpha=1-(performance.now()-L.t)/400;cx.fillText(['great','ok','miss','roll!'][L.i],hx,y-70);cx.globalAlpha=1;cx.font='14px '+F}
  const bx=W/2,by=y+90;cx.fillStyle='#000';cx.fillRect(bx-TMISS,by,TMISS*2,1);cx.fillRect(bx-1,by-8,2,16);for(const e of st.errs.slice(-30))cx.fillRect(bx+e-1,by-6,2,12);
  return `acc ${tAcc().toFixed(2)}%  combo ${st.combo}  great:${st.j[0]} ok:${st.j[1]} miss:${st.j[2]}  UR ${(sd(st.errs)*10).toFixed(0)}`}
 function taikoEnd(el){const a=tAcc(),k=`bestTaiko${st.bpm}${st.tpat}`,b=ls.get(k),nb=st.j[0]+st.j[1]>20&&a*100>b;if(nb)ls.set(k,Math.round(a*100));const m=avg(st.errs),pc=t=>t[0]+t[1]?(t[0]/(t[0]+t[1])*100).toFixed(1)+'%':'-';
- return `TAIKO RESULTS @ ${st.bpm} bpm, ${st.tpat}${nb?'  (new best!)':''}\n\naccuracy   ${a.toFixed(2)}%   best ${(Math.max(b,nb?a*100:0)/100).toFixed(2)}%\ngreat ${st.j[0]}  ok ${st.j[1]}  miss ${st.j[2]}\ndon hit    ${pc(st.typ[0])}   kat hit ${pc(st.typ[1])}\nmax combo  ${st.maxc}\nunstable   ${(sd(st.errs)*10).toFixed(0)} UR\nmean error ${m.toFixed(1)} ms (${m<0?'early':'late'})\nduration   ${(Math.max(0,el)/1000).toFixed(0)}s\n`}
+ return `TAIKO RESULTS @ ${st.bpm} bpm, ${st.tpat}${nb?'  (new best!)':''}\n\naccuracy   ${a.toFixed(2)}%   best ${(Math.max(b,nb?a*100:0)/100).toFixed(2)}%\ngreat ${st.j[0]}  ok ${st.j[1]}  miss ${st.j[2]}\ndon hit    ${pc(st.typ[0])}   kat hit ${pc(st.typ[1])}\ndrumroll   ${st.rolls} hits${st.rollMs?` (${(st.rolls/(st.rollMs/1000)).toFixed(1)}/s)`:''}\nmax combo  ${st.maxc}\nunstable   ${(sd(st.errs)*10).toFixed(0)} UR\nmean error ${m.toFixed(1)} ms (${m<0?'early':'late'})\nduration   ${(Math.max(0,el)/1000).toFixed(0)}s\n`}
 // ---------- shared ----------
 const songNow=()=>performance.now()-st.start;
 function end(){const el=songNow(),ad=st.ad?`adaptive level reached ${st.lmax}, ended at ${st.lvl}\n`:'',r=ad+(st.m=='aim'?aimEnd():st.m=='taiko'?taikoEnd(el):maniaEnd(el));st=null;cx.clearRect(0,0,W,H);hud.textContent='';show(r)}
@@ -195,7 +203,7 @@ onkeydown=e=>{if(e.repeat)return;const k=e.key.toLowerCase();
  if(st.m=='taiko'){const l=KEYS.indexOf(k);if(l>=0){st.held[l]=1;tpress(l==0||l==3?1:0,songNow())}}};
 onkeyup=e=>{if(!st)return;const k=e.key.toLowerCase();
  if(st.m=='aim'&&(k=='z'||k=='x'))st.down=Math.max(0,st.down-1);
- if(st.m!='aim'){const l=KEYS.indexOf(k);if(l>=0)st.held[l]=0}};
+ if(st.m!='aim'){const l=KEYS.indexOf(k);if(l>=0){st.held[l]=0;if(st.m=='mania'&&st.hold[l]){const n=st.hold[l],t=songNow();n.done=1;holdEnd(n,t>=n.e-MISS)}}}};
 oncontextmenu=e=>e.preventDefault();
 function loop(){requestAnimationFrame(loop);if(!st)return;cx.clearRect(0,0,W,H);cx.font='14px '+F;
  const now=songNow();if(st.dur&&now>=st.dur+(st.m=='aim'?200:MISS))return end();sched(now);
