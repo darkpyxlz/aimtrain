@@ -17,6 +17,8 @@ button:focus-visible,select:focus-visible{outline:3px solid var(--fg);outline-of
 <div id="menu"><div id="box"><div id="res"></div>
 <div class="row">mode <select id="mode"><option value="aim">aim</option><option value="mania">mania 4k</option><option value="taiko">taiko</option></select>
  time <select id="dur"><option value="30">30s</option><option value="60">60s</option><option value="0">unlimited</option></select></div>
+<div class="row">difficulty <select id="diff"><option value="custom">custom</option><option value="easy">easy</option><option value="normal">normal</option><option value="hard">hard</option><option value="insane">insane</option><option value="expert">expert</option><option value="adapt">adaptive</option></select>
+ trail <select id="trail"><option value="1">on</option><option value="0">off</option></select></div>
 <div class="row">bpm <select id="bpm"><option>90</option><option selected>120</option><option>150</option><option>180</option><option>210</option><option>240</option></select>
  music <select id="vol"><option value="0">off</option><option value="0.2">low</option><option value="0.45" selected>mid</option><option value="0.8">high</option></select></div>
 <div class="row" id="aimopt">size <select id="sz"><option value="1">normal</option><option value="0.7">small</option><option value="1.4">large</option></select>
@@ -52,20 +54,27 @@ function sched(now){if(!ac||!master.gain.value)return;while(st.ab*st.bl<now+200)
 // ---------- menu ----------
 function help(){const m=$('mode').value;$('aimopt').hidden=m!='aim';$('manopt').hidden=m=='aim';$('tkopt').hidden=m!='taiko';$('msnapw').hidden=m=='taiko';
  $('help').textContent=m=='aim'?'hit circles on the beat (click, or hover + z/x)\nsliders: hold and follow the ball, arrows = bounce back\nspinners: hold and spin around the center\nesc ends the round':m=='mania'?'press d f j k as notes reach the line, on the beat\nesc ends the round':'filled = don: f or j   ring = kat: d or k\nhit when the note reaches the left circle\nesc ends the round'}
-$('mode').onchange=help;$('go').onclick=start;
+$('mode').onchange=help;
+const PRE={easy:[90,1.4,1200,'1',0.8,'jump',.7],normal:[120,1,900,'2',1.2,'mix',1],hard:[150,1,600,'2',1.2,'mix',1.2],insane:[180,.85,450,'4',1.8,'mix',1.4],expert:[210,.7,450,'4',1.8,'mix',1.6]};
+$('diff').onchange=()=>{const d=PRE[$('diff').value];if(!d)return;[$('bpm').value,$('sz').value,$('pre').value,$('msnap').value,$('spd').value,$('pat').value]=d.slice(0,6).map(String)};
+function adapt(ok){if(!st.ad)return;st.rec.push(ok?1:0);if(st.rec.length<16)return;const a=avg(st.rec);st.rec=[];
+ if(a>=.93)st.lvl=Math.min(10,st.lvl+1);else if(a<.78)st.lvl=Math.max(1,st.lvl-1);st.lmax=Math.max(st.lmax,st.lvl);setLvl()}
+function setLvl(){const L=st.lvl;st.sp=.55+.12*L;if(st.m=='aim')st.pre=Math.max(380,st.pre0-55*(L-3));st.dens=Math.min(1,.45+.07*L)}$('go').onclick=start;
 function show(t){$('res').textContent=t;menu.hidden=false;help()}
 function start(){audio();const m=$('mode').value,bl=60000/+$('bpm').value;menu.hidden=true;
- st={m,bl,bpm:+$('bpm').value,start:performance.now()+4*bl,dur:+$('dur').value*1000,ab:-4,pops:[],combo:0,maxc:0,errs:[]};
- if(m=='aim')Object.assign(st,{r:36*$('sz').value,pre:+$('pre').value,pat:$('pat').value,objs:[],nextT:0,lx:W/2,ly:H/2,j:[0,0,0,0],score:0,off:[],track:[],spins:[],mis:0,down:0,mx:W/2,my:H/2});
+ const dd=PRE[$('diff').value];st={m,bl,ad:$('diff').value=='adapt',lvl:3,lmax:3,rec:[],sp:dd?dd[6]:1,dens:1,trail:+$('trail').value,tr:[],bpm:+$('bpm').value,start:performance.now()+4*bl,dur:+$('dur').value*1000,ab:-4,pops:[],combo:0,maxc:0,errs:[]};
+ if(m=='aim')Object.assign(st,{r:36*$('sz').value,pre:+$('pre').value,pre0:+$('pre').value,pat:$('pat').value,objs:[],nextT:0,lx:W/2,ly:H/2,j:[0,0,0,0],score:0,off:[],track:[],spins:[],mis:0,down:0,mx:W/2,my:H/2});
  else if(m=='taiko')Object.assign(st,{tpat:$('tpat').value,spd:+$('spd').value*.8,notes:[],next:0,j:[0,0,0],held:[0,0,0,0],last:null,typ:[[0,0],[0,0]]})
- else Object.assign(st,{snap:+$('msnap').value,spd:+$('spd').value,notes:[],next:0,j:[0,0,0,0,0],held:[0,0,0,0],lastLane:-1,last:null})}
+ else Object.assign(st,{snap:+$('msnap').value,spd:+$('spd').value,notes:[],next:0,j:[0,0,0,0,0],held:[0,0,0,0],lastLane:-1,last:null});if(st.ad)setLvl()}
 // ---------- aim (osu-style) ----------
 const AW=[50,100,150];
 const clx=v=>Math.min(W-st.r-10,Math.max(st.r+10,v)),cly=v=>Math.min(H-st.r-10,Math.max(st.r+50,v));
-function near(a,b,from){const ang=(from??Math.random()*PI2),d=st.r*(a+Math.random()*(b-a));return[clx(st.lx+Math.cos(ang)*d),cly(st.ly+Math.sin(ang)*d)]}
+function near(a,b,from){const ang=(from??Math.random()*PI2),d=st.r*(a+Math.random()*(b-a))*(a>2?st.sp:1);return[clx(st.lx+Math.cos(ang)*d),cly(st.ly+Math.sin(ang)*d)]}
 function C(T,p){st.objs.push({k:'c',T,x:p[0],y:p[1]});st.lx=p[0];st.ly=p[1]}
-function S(T,p,ang,L,span,reps){const x1=clx(p[0]+Math.cos(ang)*L),y1=cly(p[1]+Math.sin(ang)*L),E=T+span*(reps+1);
- st.objs.push({k:'l',T,E,x:p[0],y:p[1],x1,y1,span,reps,tr:0,tot:0});const ev=reps%2==0;st.lx=ev?x1:p[0];st.ly=ev?y1:p[1];return E}
+function S(T,p,ang,L,span,reps){L*=st.sp;const x1=clx(p[0]+Math.cos(ang)*L),y1=cly(p[1]+Math.sin(ang)*L),E=T+span*(reps+1),
+ bend=Math.random()<.65?(Math.random()-.5)*1.6:0,qx=clx((p[0]+x1)/2-(y1-p[1])*bend*.5),qy=cly((p[1]+y1)/2+(x1-p[0])*bend*.5),o={k:'l',T,E,x:p[0],y:p[1],x1,y1,qx,qy,span,reps,tr:0,tot:0};
+ o.lut=[];let len=0,px=o.x,py=o.y;for(let i=0;i<=40;i++){const[a,b]=bz(o,i/40);len+=hyp(a-px,b-py);o.lut.push([len,a,b]);px=a;py=b}
+ st.objs.push(o);const ev=reps%2==0;st.lx=ev?x1:p[0];st.ly=ev?y1:p[1];return E}
 function chunk(T){const b=st.bl,h=b/2,r=st.r,R=Math.random,pats=['jump','stream','double','sc','stack','tri','back','slider'];
  let P=st.pat=='mix'?pats[R()*pats.length|0]:st.pat;
  if(st.pat=='mix'&&R()<.08&&T>b*4&&(!st.dur||T+b*5<st.dur)){const E=T+b*4;st.objs.push({k:'s',T,E,x:W/2,y:H/2,rot:0,pa:null});st.lx=W/2;st.ly=H/2;return E+b}
@@ -79,13 +88,15 @@ function chunk(T){const b=st.bl,h=b/2,r=st.r,R=Math.random,pats=['jump','stream'
  if(P=='back'){const p0=near(3,4),p1=near(4,6);for(let i=0;i<6;i++){C(T,i%2?p1:p0);T+=h*(st.bpm>170?2:1)}return T+h}
  {const p=near(3,5);return S(T,p,R()*PI2,r*(3+R()*3),R()<.5?h:b,R()<.45?1+(R()*2|0):0)+b}}
 function gen(now){while(st.nextT<now+st.pre+200&&(!st.dur||st.nextT<st.dur-300))st.nextT=chunk(st.nextT)}
-function award(v,x,y){st.j[[300,100,50,0].indexOf(v)]++;if(v){st.combo++;st.maxc=Math.max(st.maxc,st.combo);st.score+=Math.round(v*(1+st.combo/25));hitSound()}else st.combo=0;st.pops.push({x,y,v,t:performance.now()})}
+function award(v,x,y){adapt(v>=100);st.j[[300,100,50,0].indexOf(v)]++;if(v){st.combo++;st.maxc=Math.max(st.maxc,st.combo);st.score+=Math.round(v*(1+st.combo/25));hitSound()}else st.combo=0;st.pops.push({x,y,v,t:performance.now()})}
 const grade=e=>{const a=Math.abs(e);return a<=AW[0]?300:a<=AW[1]?100:a<=AW[2]?50:0};
 function press(now){st.down++;const o=st.objs.find(o=>!o.hd&&o.k!='s');if(!o)return;
  const d=hyp(st.mx-o.x,st.my-o.y),e=now-o.T;if(d>st.r||e<-400){if(d>st.r)st.mis++;return}
  o.hd=1;const v=grade(e);st.errs.push(e);st.off.push(d/st.r);
  if(o.k=='c'){o.done=1;award(v,o.x,o.y)}else{o.hv=v;if(v)hitSound()}}
-function ball(o,now){let p=Math.max(0,Math.min(o.reps+1,(now-o.T)/o.span));let s=Math.floor(p),f=p-s;if(s>o.reps){s=o.reps;f=1}if(s%2)f=1-f;return[o.x+(o.x1-o.x)*f,o.y+(o.y1-o.y)*f,s]}
+function bz(o,t){const u=1-t;return[u*u*o.x+2*u*t*o.qx+t*t*o.x1,u*u*o.y+2*u*t*o.qy+t*t*o.y1]}
+function at(o,f){const L=o.lut,tg=f*L[40][0];let i=1;while(i<40&&L[i][0]<tg)i++;const a=L[i-1],b=L[i],k=(tg-a[0])/Math.max(b[0]-a[0],1e-6);return[a[1]+(b[1]-a[1])*k,a[2]+(b[2]-a[2])*k]}
+function ball(o,now){let p=Math.max(0,Math.min(o.reps+1,(now-o.T)/o.span));let s=Math.floor(p),f=p-s;if(s>o.reps){s=o.reps;f=1}if(s%2)f=1-f;return[...at(o,f),s]}
 function update(now){for(const o of st.objs){
  if(o.k=='c'&&!o.hd&&now>o.T+AW[2]){o.hd=o.done=1;award(0,o.x,o.y)}
  if(o.k=='l'){if(!o.hd&&now>o.T+AW[2]){o.hd=1;o.hv=0;st.combo=0}
@@ -102,11 +113,11 @@ function aimDraw(now,t){gen(now);update(now);const r=st.r;
  for(let i=st.objs.length-1;i>=0;i--){const o=st.objs[i];if(now<o.T-st.pre)continue;
   const al=Math.min(1,(now-o.T+st.pre)/(st.pre*.4)),k=(o.T-now)/st.pre;
   if(o.k=='c'){circ(o.x,o.y,r,al);ring(o.x,o.y,r,k,al)}
-  else if(o.k=='l'){cx.globalAlpha=al;cx.lineCap='round';cx.strokeStyle='#000';cx.lineWidth=2*r+4;cx.beginPath();cx.moveTo(o.x,o.y);cx.lineTo(o.x1,o.y1);cx.stroke();
+  else if(o.k=='l'){cx.globalAlpha=al;cx.lineCap='round';cx.strokeStyle='#000';cx.lineWidth=2*r+4;cx.beginPath();cx.moveTo(o.x,o.y);cx.quadraticCurveTo(o.qx,o.qy,o.x1,o.y1);cx.stroke();
    cx.strokeStyle='#fff';cx.lineWidth=2*r-4;cx.stroke();cx.strokeStyle='#000';cx.lineWidth=2;
    for(const[px,py]of[[o.x,o.y],[o.x1,o.y1]]){cx.beginPath();cx.arc(px,py,r,0,PI2);cx.stroke()}
    const[bx,by,s]=ball(o,now),left=o.reps-s;
-   if(left>0){if(s%2)arrow(o.x,o.y,o.x1,o.y1,r);else arrow(o.x1,o.y1,o.x,o.y,r)}
+   if(left>0){const e=at(o,.97),h0=at(o,.03);if(s%2)arrow(o.x,o.y,h0[0],h0[1],r);else arrow(o.x1,o.y1,e[0],e[1],r)}
    if(!o.hd){circ(o.x,o.y,r,al);ring(o.x,o.y,r,k,al)}
    if(now>=o.T){cx.globalAlpha=1;cx.fillStyle='#000';cx.beginPath();cx.arc(bx,by,r*.55,0,PI2);cx.fill();
     if(st.down&&hyp(st.mx-bx,st.my-by)<=r*2.4){cx.lineWidth=2;cx.beginPath();cx.arc(bx,by,r*2.4,0,PI2);cx.stroke()}}}
@@ -120,12 +131,12 @@ function aimEnd(){const a=aimAcc(),k='bestAim'+st.bpm+st.pat,b=ls.get(k),nb=st.s
  return `AIM RESULTS @ ${st.bpm} bpm, ${st.pat}${nb?'  (new best!)':''}\n\nscore       ${st.score}   best ${Math.max(b,st.score)}\naccuracy    ${a.toFixed(2)}%\n300 ${st.j[0]}  100 ${st.j[1]}  50 ${st.j[2]}  miss ${st.j[3]}\nmax combo   ${st.maxc}x\nunstable    ${(sd(st.errs)*10).toFixed(0)} UR\nmean error  ${m.toFixed(1)} ms (${m<0?'early':'late'})\noff-center  ${(avg(st.off)*100).toFixed(0)}% of radius\nslider hold ${st.track.length?(avg(st.track)*100).toFixed(0)+'%':'-'}\nspinner     ${st.spins.length?avg(st.spins).toFixed(0)+' rpm':'-'}\nmisclicks   ${st.mis}\n`}
 // ---------- mania ----------
 const KEYS='dfjk',MW=[[40,300],[80,200],[110,100],[140,50]],MISS=160,LW=70,JN=['300','200','100','50','miss'];
-function mjudge(i,err){st.j[i]++;if(i<4){st.combo++;st.maxc=Math.max(st.maxc,st.combo);st.errs.push(err);hitSound()}else st.combo=0;st.last={i,err,t:performance.now()}}
+function mjudge(i,err){adapt(i<2);st.j[i]++;if(i<4){st.combo++;st.maxc=Math.max(st.maxc,st.combo);st.errs.push(err);hitSound()}else st.combo=0;st.last={i,err,t:performance.now()}}
 function mpress(l,now){let best=null;for(const n of st.notes)if(n.l==l&&!n.done&&Math.abs(now-n.t)<=MISS&&(!best||n.t<best.t))best=n;
  if(!best)return;best.done=1;const e=now-best.t,a=Math.abs(e);mjudge(a>MW[3][0]?4:MW.findIndex(w=>a<=w[0]),e)}
 function mAcc(){const j=st.j,n=j.reduce((a,b)=>a+b,0);return n?(j[0]*300+j[1]*200+j[2]*100+j[3]*50)/(n*3):100}
 function maniaDraw(now){const lx=W/2-LW*2,hy=H-110,px=st.spd,u=st.bl/st.snap;
- while(st.next<now+H/px&&(!st.dur||st.next<st.dur-300)){const T=st.next;st.next+=u;if(Math.random()<.2)continue;
+ while(st.next<now+H/px&&(!st.dur||st.next<st.dur-300)){const T=st.next;st.next+=u;if(Math.random()<.2+(1-st.dens))continue;
   let l;do l=Math.random()*4|0;while(l==st.lastLane&&Math.random()<.7);st.lastLane=l;st.notes.push({l,t:T});
   if(T%st.bl<1&&Math.random()<.2)st.notes.push({l:(l+1+(Math.random()*3|0))%4,t:T})}
  for(const n of st.notes)if(!n.done&&now-n.t>MISS){n.done=1;mjudge(4,MISS)}
@@ -150,9 +161,9 @@ const TW=[35,80],TMISS=110,TP={alt:['dkdk','kdkd'],tri:['ddk','kkd','dkk','kdd']
 function tgen(now){const q=st.bl/4;while(st.next<now+W/st.spd&&(!st.dur||st.next<st.dur-300)){
  const P=st.tpat=='mix'?Object.keys(TP)[Math.random()*6|0]:st.tpat,list=TP[P],str=list[Math.random()*list.length|0],
  step=(P=='burst'||P=='stream')?q:q*2;
- for(const ch of str){st.notes.push({t:st.next,k:ch=='k'?1:0});st.next+=step}
+ if(Math.random()>st.dens){st.next+=st.bl;continue}for(const ch of str){st.notes.push({t:st.next,k:ch=='k'?1:0});st.next+=step}
  st.next=Math.ceil((st.next+st.bl/2)/(st.bl/2))*(st.bl/2)}}
-function tjudge(n,i,e){st.j[i]++;if(n)st.typ[n.k][i<2?0:1]++;if(i<2){st.combo++;st.maxc=Math.max(st.maxc,st.combo);st.errs.push(e);hitSound()}else st.combo=0;st.last={i,t:performance.now()}}
+function tjudge(n,i,e){adapt(i==0);st.j[i]++;if(n)st.typ[n.k][i<2?0:1]++;if(i<2){st.combo++;st.maxc=Math.max(st.maxc,st.combo);st.errs.push(e);hitSound()}else st.combo=0;st.last={i,t:performance.now()}}
 function tpress(k,now){let n=null;for(const m of st.notes)if(!m.done&&Math.abs(now-m.t)<=TMISS&&(!n||m.t<n.t))n=m;if(!n)return;
  n.done=1;const e=now-n.t,a=Math.abs(e);tjudge(n,n.k!=k?2:a<=TW[0]?0:a<=TW[1]?1:2,e)}
 function tAcc(){const j=st.j,n=j[0]+j[1]+j[2];return n?(j[0]+j[1]*.5)/n*100:100}
@@ -172,8 +183,8 @@ function taikoEnd(el){const a=tAcc(),k=`bestTaiko${st.bpm}${st.tpat}`,b=ls.get(k
  return `TAIKO RESULTS @ ${st.bpm} bpm, ${st.tpat}${nb?'  (new best!)':''}\n\naccuracy   ${a.toFixed(2)}%   best ${(Math.max(b,nb?a*100:0)/100).toFixed(2)}%\ngreat ${st.j[0]}  ok ${st.j[1]}  miss ${st.j[2]}\ndon hit    ${pc(st.typ[0])}   kat hit ${pc(st.typ[1])}\nmax combo  ${st.maxc}\nunstable   ${(sd(st.errs)*10).toFixed(0)} UR\nmean error ${m.toFixed(1)} ms (${m<0?'early':'late'})\nduration   ${(Math.max(0,el)/1000).toFixed(0)}s\n`}
 // ---------- shared ----------
 const songNow=()=>performance.now()-st.start;
-function end(){const el=songNow(),r=st.m=='aim'?aimEnd():st.m=='taiko'?taikoEnd(el):maniaEnd(el);st=null;cx.clearRect(0,0,W,H);hud.textContent='';show(r)}
-onmousemove=e=>{if(st&&st.m=='aim'){st.mx=e.clientX;st.my=e.clientY}};
+function end(){const el=songNow(),ad=st.ad?`adaptive level reached ${st.lmax}, ended at ${st.lvl}\n`:'',r=ad+(st.m=='aim'?aimEnd():st.m=='taiko'?taikoEnd(el):maniaEnd(el));st=null;cx.clearRect(0,0,W,H);hud.textContent='';show(r)}
+onmousemove=e=>{if(st&&st.m=='aim'){st.mx=e.clientX;st.my=e.clientY;if(st.trail)st.tr.push([e.clientX,e.clientY,performance.now()])}};
 c.onmousedown=e=>{e.preventDefault();if(st&&st.m=='aim')press(songNow())};
 onmouseup=()=>{if(st&&st.m=='aim')st.down=Math.max(0,st.down-1)};
 onkeydown=e=>{if(e.repeat)return;const k=e.key.toLowerCase();
@@ -192,8 +203,10 @@ function loop(){requestAnimationFrame(loop);if(!st)return;cx.clearRect(0,0,W,H);
  cx.globalAlpha=1;cx.textAlign='center';cx.fillStyle='#000';
  if(now<0){cx.font='bold 40px '+F;cx.fillText(Math.ceil(-now/st.bl),W/2,80);cx.font='14px '+F}
  if(st.pops)for(const p of st.pops=st.pops.filter(p=>performance.now()-p.t<600)){const a=(performance.now()-p.t)/600;cx.globalAlpha=1-a;cx.font='bold 18px '+F;cx.fillText(p.v?p.v:'×',p.x,p.y-(st.r||0)-8-a*14)}
+ if(st.trail&&st.m=='aim'){const T0=performance.now();st.tr=st.tr.filter(p=>T0-p[2]<180);cx.strokeStyle='#000';cx.lineCap='round';
+  for(let i=1;i<st.tr.length;i++){const a=st.tr[i-1],b=st.tr[i];cx.globalAlpha=.6*(1-(T0-b[2])/180);cx.lineWidth=2+4*(1-(T0-b[2])/180);cx.beginPath();cx.moveTo(a[0],a[1]);cx.lineTo(b[0],b[1]);cx.stroke()}}
  cx.globalAlpha=1;cx.font='14px '+F;
- hud.textContent=(st.dur?`time ${Math.max(0,(st.dur-Math.max(now,0))/1000).toFixed(1)}`:`time ${(Math.max(now,0)/1000).toFixed(0)}s (esc to stop)`)+`  ${st.bpm}bpm  `+h}
+ hud.textContent=(st.dur?`time ${Math.max(0,(st.dur-Math.max(now,0))/1000).toFixed(1)}`:`time ${(Math.max(now,0)/1000).toFixed(0)}s (esc to stop)`)+`  ${st.bpm}bpm  `+(st.ad?`lvl ${st.lvl}  `:'')+h}
 requestAnimationFrame(loop);
 show(`AIMTRAIN\n\nosu-style aim, mania and taiko trainer, synced to a beat\n`);
 </script>
