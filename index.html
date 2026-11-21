@@ -1,35 +1,41 @@
 <title>Aimtrain</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
-/* single deliberate look: white ground, black ink (requested) */
-:root{--bg:#fff;--fg:#000;color-scheme:light}
-html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font:14px ui-monospace,Menlo,Consolas,monospace;overflow:hidden;user-select:none}
+/* white ground, black ink (requested); grey for secondary text, in the spirit of a minimal typing-test UI */
+:root{--bg:#fff;--fg:#111;--sub:#9a9a9a;--tint:#f1f1f1;color-scheme:light}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font:14px ui-monospace,"SF Mono",Menlo,Consolas,monospace;overflow:hidden;user-select:none}
 canvas{display:block;cursor:crosshair}
 #hud{position:fixed;top:calc(8px + env(safe-area-inset-top,0px));left:max(12px,env(safe-area-inset-left,0px));pointer-events:none;white-space:pre;font-variant-numeric:tabular-nums}
-#menu{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:16px}
+#menu{position:fixed;inset:0;display:flex;flex-direction:column;gap:24px;padding-block:24px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));box-sizing:border-box;overflow:auto;background:var(--bg)}
 #menu[hidden]{display:none}
-#box{border:2px solid var(--fg);padding:20px;background:var(--bg);white-space:pre;line-height:1.6;font-variant-numeric:tabular-nums;max-width:100%;max-height:100%;overflow:auto;box-sizing:border-box}
-.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px}
-button,select{font:inherit;color:var(--fg);background:var(--bg);border:2px solid var(--fg);padding:4px 10px;cursor:pointer}
-button:focus-visible,select:focus-visible{outline:3px solid var(--fg);outline-offset:2px}
+.top{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;max-width:1000px;width:100%;margin:0 auto}
+.logo{font-size:26px;font-weight:700;letter-spacing:-.02em}.logo span{color:var(--sub)}
+.opt,.links button,.start{background:none;border:0;color:var(--sub);padding:3px 6px;cursor:pointer;font:inherit;border-radius:4px}
+.opt:hover,.links button:hover,.start:hover{color:var(--fg)}
+.opt.on{color:var(--fg);font-weight:700}
+#cfg{align-self:center;background:var(--tint);border-radius:8px;padding:8px 14px;display:flex;flex-direction:column;gap:6px;max-width:100%;box-sizing:border-box}
+.line{display:flex;flex-wrap:wrap;gap:4px 18px;justify-content:center}
+.grp{display:flex;align-items:center;flex-wrap:wrap}
+.grp small{color:var(--sub);margin-right:4px;font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+.tabs .opt{font-size:17px}
+.mid{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;min-height:max-content}
+#big{display:flex;gap:44px;flex-wrap:wrap;justify-content:center}
+.stat small{display:block;color:var(--sub);font-size:16px}.stat b{font-size:52px;line-height:1.05;font-variant-numeric:tabular-nums}
+#res{margin:0;white-space:pre;line-height:1.6;max-width:100%;overflow:auto;font:inherit;font-variant-numeric:tabular-nums}
+#help{color:var(--sub);margin:0;font:inherit;white-space:pre-wrap;text-align:center;line-height:1.6}
+.start{font-size:18px;color:var(--fg)}
+footer{display:flex;flex-wrap:wrap;gap:8px 18px;justify-content:center;color:var(--sub);font-size:12px}
+kbd{background:var(--tint);color:var(--fg);border-radius:4px;padding:1px 6px;font:inherit}
+button:focus-visible{outline:2px solid var(--fg);outline-offset:1px}
 </style>
 <canvas id="c"></canvas><div id="hud"></div>
-<div id="menu"><div id="box"><div id="res"></div>
-<div class="row">mode <select id="mode"><option value="aim">aim</option><option value="mania">mania 4k</option><option value="taiko">taiko</option><option value="orbit">orbit (adofai-style)</option></select>
- time <select id="dur"><option value="30">30s</option><option value="60">60s</option><option value="0">unlimited</option></select></div>
-<div class="row">difficulty <select id="diff"><option value="custom">custom</option><option value="easy">easy</option><option value="normal">normal</option><option value="hard">hard</option><option value="insane">insane</option><option value="expert">expert</option><option value="adapt">adaptive</option></select>
- trail <select id="trail"><option value="1">on</option><option value="0">off</option></select></div>
-<div class="row">bpm <select id="bpm"><option>90</option><option selected>120</option><option>150</option><option>180</option><option>210</option><option>240</option></select>
- music <select id="vol"><option value="0">off</option><option value="0.2">low</option><option value="0.45" selected>mid</option><option value="0.8">high</option></select></div>
-<div class="row" id="aimopt">size <select id="sz"><option value="1">normal</option><option value="0.7">small</option><option value="1.4">large</option></select>
- approach <select id="pre"><option value="3">slow (3 beats)</option><option value="2" selected>normal (2 beats)</option><option value="1.5">fast (1.5 beats)</option><option value="1">very fast (1 beat)</option></select>
- pattern <select id="pat"><option value="mix">mixed</option><option value="jump">jumps</option><option value="stream">streams</option><option value="double">doubles</option><option value="sc">circle + slider</option><option value="stack">stacks</option><option value="tri">triangles</option><option value="back">back and forth</option></select></div>
-<div class="row" id="tkopt" hidden>pattern <select id="tpat"><option value="mix">mixed</option><option value="alt">alternating dkdk</option><option value="tri">triplets ddk / kkd</option><option value="burst">1/4 bursts (5)</option><option value="fc">finger control</option><option value="stream">1/4 streams</option><option value="mono">mono don/kat runs</option></select></div>
-<div class="row" id="oopt" hidden>path <select id="opat"><option value="mixed">mixed</option><option value="straight">straight</option><option value="square">90° turns</option><option value="zigzag">zigzag</option><option value="thirds">thirds (60° / 120°)</option><option value="swing">swing (0.75 / 1.25)</option></select></div>
-<div class="row" id="manopt" hidden><span id="msnapw">snap <select id="msnap"><option value="1">1/1</option><option value="2" selected>1/2</option><option value="4">1/4</option></select></span>
- scroll <select id="spd"><option value="0.8">slow</option><option value="1.2" selected>normal</option><option value="1.8">fast</option></select></div>
-<div class="row"><button id="go">start (space)</button><button id="recs">records</button><button id="clr">clear records</button></div>
-<div id="help"></div></div></div>
+<div id="menu">
+<header class="top"><div class="logo">aim<span>train</span></div><nav class="links"><button id="keys">keybinds</button><button id="recs">records</button><button id="clr">clear records</button></nav></header>
+<div id="cfg"></div>
+<main class="mid"><div id="big"></div><pre id="res"></pre><button id="go" class="start">start ▸</button><pre id="help"></pre></main>
+<footer id="foot"></footer>
+<div hidden><select id="mode"><option value="aim">aim</option><option value="mania">mania 4k</option><option value="taiko">taiko</option><option value="orbit">orbit (adofai-style)</option></select><select id="dur"><option value="30">30s</option><option value="60">60s</option><option value="0">unlimited</option></select><select id="diff"><option value="custom">custom</option><option value="easy">easy</option><option value="normal">normal</option><option value="hard">hard</option><option value="insane">insane</option><option value="expert">expert</option><option value="adapt">adaptive</option></select><select id="trail"><option value="1">on</option><option value="0">off</option></select><select id="bpm"><option>90</option><option selected>120</option><option>150</option><option>180</option><option>210</option><option>240</option></select><select id="vol"><option value="0">off</option><option value="0.2">low</option><option value="0.45" selected>mid</option><option value="0.8">high</option></select><select id="sz"><option value="1">normal</option><option value="0.7">small</option><option value="1.4">large</option></select><select id="pre"><option value="3">slow (3 beats)</option><option value="2" selected>normal (2 beats)</option><option value="1.5">fast (1.5 beats)</option><option value="1">very fast (1 beat)</option></select><select id="pat"><option value="mix">mixed</option><option value="jump">jumps</option><option value="stream">streams</option><option value="double">doubles</option><option value="sc">circle + slider</option><option value="stack">stacks</option><option value="tri">triangles</option><option value="back">back and forth</option></select><select id="tpat"><option value="mix">mixed</option><option value="alt">alternating dkdk</option><option value="tri">triplets ddk / kkd</option><option value="burst">1/4 bursts (5)</option><option value="fc">finger control</option><option value="stream">1/4 streams</option><option value="mono">mono don/kat runs</option></select><select id="opat"><option value="mixed">mixed</option><option value="straight">straight</option><option value="square">90° turns</option><option value="zigzag">zigzag</option><option value="thirds">thirds (60° / 120°)</option><option value="swing">swing (0.75 / 1.25)</option></select><select id="msnap"><option value="1">1/1</option><option value="2" selected>1/2</option><option value="4">1/4</option></select><select id="spd"><option value="0.8">slow</option><option value="1.2" selected>normal</option><option value="1.8">fast</option></select></div>
+</div>
 <script>
 const $=id=>document.getElementById(id),c=$('c'),cx=c.getContext('2d'),hud=$('hud'),menu=$('menu');
 let W,H;function rs(){W=c.width=innerWidth;H=c.height=innerHeight}onresize=rs;rs();
@@ -53,7 +59,7 @@ function beat(b,t,bl){if(b<0){tone(t,b==-4?1320:880,.06,'square',.12);return}
 function hitSound(){if(ac&&master.gain.value)noise(ac.currentTime,.03,.5,3000)}
 function sched(now){if(!ac||!master.gain.value)return;while(st.ab*st.bl<now+200){const tt=st.ab*st.bl;if(tt>now-30)beat(st.ab,ac.currentTime+Math.max(0,(tt-now)/1000),st.bl/1000);st.ab++}}
 // ---------- menu ----------
-function help(){const m=$('mode').value;$('aimopt').hidden=m!='aim';$('manopt').hidden=m=='aim'||m=='orbit';$('oopt').hidden=m!='orbit';$('tkopt').hidden=m!='taiko';$('msnapw').hidden=m=='taiko';
+function help(){const m=$('mode').value;renderCfg();
  $('help').textContent=m=='aim'?'hit circles on the beat (click, or hover + z/x)\nsliders: hold and follow the ball, arrows = bounce back\nspinners: hold and spin around the center\nesc ends the round':m=='orbit'?'press any key (or click) when the orbiting planet reaches the next tile\nthe turn angle sets the rhythm: straight = 1 beat, 90° = 1/2 or 3/2\nesc ends the round':m=='mania'?'press d f j k as notes reach the line, on the beat\nlong notes: hold until the tail reaches the line\nesc ends the round':'filled = don: f or j   ring = kat: d or k\nhit when the note reaches the left circle\nlong bars = drumroll: hit either key as fast as you can\nesc ends the round'}
 $('mode').onchange=help;
 const PRE={easy:[90,1.4,3,'1',0.8,'jump',.7],normal:[120,1,2,'2',1.2,'mix',1],hard:[150,1,1.5,'2',1.2,'mix',1.2],insane:[180,.85,1,'4',1.8,'mix',1.4],expert:[210,.7,1,'4',1.8,'mix',1.6]};
@@ -61,7 +67,18 @@ $('diff').onchange=()=>{const d=PRE[$('diff').value];if(!d)return;[$('bpm').valu
 function adapt(ok){if(!st.ad)return;st.rec.push(ok?1:0);if(st.rec.length<16)return;const a=avg(st.rec);st.rec=[];
  if(a>=.93)st.lvl=Math.min(10,st.lvl+1);else if(a<.78)st.lvl=Math.max(1,st.lvl-1);st.lmax=Math.max(st.lmax,st.lvl);setLvl()}
 function setLvl(){const L=st.lvl;st.sp=.55+.12*L;if(st.m=='aim')st.pre=Math.max(380,st.pre0-55*(L-3));st.dens=Math.min(1,.45+.07*L)}$('go').onclick=start;
-function show(t){$('res').textContent=t;menu.hidden=false;help()}
+function show(t,big=[]){$('res').textContent=t;$('big').innerHTML=big.map(([k,v])=>`<div class="stat"><small>${k}</small><b>${v}</b></div>`).join('');menu.hidden=false;help()}
+const G=[['dur','time','all'],['bpm','bpm','all'],['diff','difficulty','all'],['vol','music','all'],['sz','size','aim'],['pre','approach','aim'],['pat','pattern','aim'],['trail','trail','aim'],
+ ['msnap','snap','mania'],['spd','scroll','mania taiko'],['tpat','pattern','taiko'],['opat','path','orbit']];
+const KB={all:[['space','start'],['tab','restart'],['esc','stop']],aim:[['click / z / x','hit'],['hold','sliders, spinners']],mania:[['d f j k','lanes'],['hold','long notes']],taiko:[['f j','don'],['d k','kat'],['any','drumroll']],orbit:[['any key / click','hit']]};
+const kb=l=>l.map(([k,v])=>`<span><kbd>${k}</kbd> ${v}</span>`).join('');
+function grp(id,label){const sel=$(id),g=document.createElement('div');g.className='grp';if(label)g.innerHTML=`<small>${label}</small>`;
+ for(const o of sel.options){const b=document.createElement('button');b.className='opt'+(o.value==sel.value?' on':'');b.textContent=o.text;
+  b.onclick=()=>{sel.value=o.value;sel.dispatchEvent(new Event('change'));if(id!='diff'&&id!='mode'&&G.slice(1).some(x=>x[0]==id)&&$('diff').value!='adapt')$('diff').value='custom';renderCfg()};g.append(b)}return g}
+function renderCfg(){const m=$('mode').value,cf=$('cfg');cf.innerHTML='';const t=document.createElement('div');t.className='line tabs';t.append(grp('mode'));cf.append(t);
+ for(const sc of ['all','mode']){const l=document.createElement('div');l.className='line';for(const[id,lb,w]of G)if(sc=='all'?w=='all':w.split(' ').includes(m))l.append(grp(id,lb));if(l.childElementCount)cf.append(l)}
+ $('foot').innerHTML=kb(KB.all)+kb(KB[m])}
+$('keys').onclick=()=>show('KEYBINDS\n\nanywhere   space / enter  start round\n           tab            restart round\n           esc            stop and show results\n\naim        click, z, x    hit circle (hover it)\n           hold           follow sliders, spin spinners\nmania      d f j k        lanes 1-4, hold for long notes\ntaiko      f j            don (filled)\n           d k            kat (ring)\n           any of them    drumroll bars\norbit      any key/click  hit the next tile\n');
 function start(){audio();const m=$('mode').value,bl=60000/+$('bpm').value;menu.hidden=true;
  const dd=PRE[$('diff').value];st={m,bl,ad:$('diff').value=='adapt',lvl:3,lmax:3,rec:[],sp:dd?dd[6]:1,dens:1,trail:+$('trail').value,tr:[],bpm:+$('bpm').value,start:performance.now()+4*bl,dur:+$('dur').value*1000,ab:-4,pops:[],combo:0,maxc:0,errs:[]};
  if(m=='aim')Object.assign(st,{r:36*$('sz').value,pre:Math.min(1800,Math.max(320,$('pre').value*bl)),pre0:Math.min(1800,Math.max(320,$('pre').value*bl)),pat:$('pat').value,objs:[],nextT:0,lx:W/2,ly:H/2,j:[0,0,0,0],score:0,off:[],track:[],spins:[],mis:0,down:0,mx:W/2,my:H/2});
@@ -247,12 +264,13 @@ $('clr').onclick=()=>{const b=$('clr');if(b.dataset.arm){try{localStorage.remove
 const songNow=()=>performance.now()-st.start;
 function end(){const el=songNow(),ad=st.ad?`adaptive level reached ${st.lmax}, ended at ${st.lvl}\n`:'',M=st.m,r=ad+(M=='aim'?aimEnd():M=='taiko'?taikoEnd(el):M=='orbit'?orbitEnd(el):maniaEnd(el)),
  acc=M=='aim'?aimAcc():M=='taiko'?tAcc():M=='orbit'?oAcc():mAcc(),n=st.j.reduce((a,b)=>a+b,0),cfg=st.bpm+' '+(M=='aim'?st.pat:M=='taiko'?st.tpat:M=='orbit'?st.opat:'1/'+st.snap)+(st.ad?' adaptive':''),
- rc=n>=10?saveRun({t:Date.now(),m:M,cfg,acc,score:st.score||0,ur:Math.round(sd(st.errs)*10)}):'\n(round too short to save, needs 10+ notes)\n';st=null;cx.clearRect(0,0,W,H);hud.textContent='';show(r+rc)}
+ big=[...(M=='aim'?[['score',st.score]]:[]),['acc',acc.toFixed(2)+'%'],['UR',Math.round(sd(st.errs)*10)],['combo',st.maxc+'x']],rc=n>=10?saveRun({t:Date.now(),m:M,cfg,acc,score:st.score||0,ur:Math.round(sd(st.errs)*10)}):'\n(round too short to save, needs 10+ notes)\n';st=null;cx.clearRect(0,0,W,H);hud.textContent='';show(r+rc,big)}
 onmousemove=e=>{if(st&&st.m=='aim'){st.mx=e.clientX;st.my=e.clientY;if(st.trail)st.tr.push([e.clientX,e.clientY,performance.now()])}};
 c.onmousedown=e=>{e.preventDefault();if(st&&st.m=='aim')press(songNow());else if(st&&st.m=='orbit')opress(songNow())};
 onmouseup=()=>{if(st&&st.m=='aim')st.down=Math.max(0,st.down-1)};
 onkeydown=e=>{if(e.repeat)return;const k=e.key.toLowerCase();
- if(!st){if(k==' '&&document.activeElement.tagName!='BUTTON'){e.preventDefault();start()}return}
+ if(k=='tab'){e.preventDefault();if(st){st=null;cx.clearRect(0,0,W,H);hud.textContent=''}start();return}
+ if(!st){if((k==' '||k=='enter')&&document.activeElement.tagName!='BUTTON'){e.preventDefault();start()}return}
  if(k=='escape')return end();
  if(st.m=='orbit'){opress(songNow());return}
  if(st.m=='aim'&&(k=='z'||k=='x'))press(songNow());
@@ -273,5 +291,5 @@ function loop(){requestAnimationFrame(loop);if(!st)return;cx.clearRect(0,0,W,H);
  cx.globalAlpha=1;cx.font='14px '+F;
  hud.textContent=(st.dur?`time ${Math.max(0,(st.dur-Math.max(now,0))/1000).toFixed(1)}`:`time ${(Math.max(now,0)/1000).toFixed(0)}s (esc to stop)`)+`  ${st.bpm}bpm  `+(st.ad?`lvl ${st.lvl}  `:'')+h}
 requestAnimationFrame(loop);
-show(`AIMTRAIN\n\nosu-style aim, mania, taiko and orbit trainer\nrecords: every finished round is checked against your best\n, synced to a beat\n`);
+show(`osu-style aim, mania, taiko and orbit trainer, synced to a beat\nevery finished round is checked against your records\n`);
 </script>
