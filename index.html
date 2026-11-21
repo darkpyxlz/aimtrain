@@ -1,0 +1,54 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>aimtrain</title>
+<style>
+html,body{margin:0;height:100%;background:#fff;color:#000;font:14px monospace;overflow:hidden;user-select:none}
+canvas{display:block;cursor:crosshair}
+#hud{position:fixed;top:8px;left:10px;pointer-events:none;white-space:pre}
+#menu{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
+#box{border:2px solid #000;padding:20px;background:#fff;text-align:center;white-space:pre;line-height:1.6}
+button,select{font:inherit;background:#fff;border:2px solid #000;padding:4px 12px;cursor:pointer}
+</style></head><body>
+<canvas id="c"></canvas><div id="hud"></div>
+<div id="menu"><div id="box"></div></div>
+<script>
+const c=document.getElementById('c'),x=c.getContext('2d'),hud=document.getElementById('hud'),menu=document.getElementById('menu'),box=document.getElementById('box');
+let W,H;function rs(){W=c.width=innerWidth;H=c.height=innerHeight}onresize=rs;rs();
+const R=36,LIFE=1200,DUR=30000; // radius px, circle lifetime ms, round length ms
+let st=null,best=+localStorage.aimBest||0;
+function show(t){box.innerHTML=t+`\n\nsize <select id=sz><option value=1>normal</option><option value=0.7>small</option><option value=1.4>large</option></select>\n\n<button id=go>start (space)</button>\nclick circles before they shrink away\nkeys z / x also click`;menu.style.display='flex';document.getElementById('go').onclick=start}
+function start(){const s=+document.getElementById('sz').value;menu.style.display='none';
+ st={t0:performance.now(),r:R*s,hits:0,miss:0,clicks:0,combo:0,maxc:0,rt:[],err:[],cur:null,last:null,mx:W/2,my:H/2,fx:[]};spawn(st.t0)}
+function spawn(t){const r=st.r,p=st.cur;let nx,ny;do{nx=r+Math.random()*(W-2*r);ny=r+40+Math.random()*(H-2*r-40)}while(p&&Math.hypot(nx-p.x,ny-p.y)<r*3);
+ st.cur={x:nx,y:ny,t,sx:st.mx,sy:st.my}}
+function click(){if(!st)return;const t=performance.now(),p=st.cur;st.clicks++;
+ const d=Math.hypot(st.mx-p.x,st.my-p.y);
+ if(d<=st.r){st.hits++;st.combo++;st.maxc=Math.max(st.maxc,st.combo);st.rt.push(t-p.t);st.err.push(d/st.r);st.fx.push({x:p.x,y:p.y,t,h:1});spawn(t)}
+ else{st.combo=0;st.miss++;st.fx.push({x:st.mx,y:st.my,t,h:0})}}
+onmousemove=e=>{if(st){st.mx=e.clientX;st.my=e.clientY}};
+c.onmousedown=e=>{e.preventDefault();click()};
+onkeydown=e=>{if(e.repeat)return;const k=e.key.toLowerCase();if(k=='z'||k=='x')click();else if(k==' '&&!st)start();else if(k=='escape'&&st)end()};
+oncontextmenu=e=>e.preventDefault();
+const avg=a=>a.length?a.reduce((s,v)=>s+v,0)/a.length:0;
+function stats(){const acc=st.clicks?st.hits/st.clicks*100:0,el=(performance.now()-st.t0)/1000;
+ return{acc,rt:avg(st.rt),err:avg(st.err)*100,tps:st.hits/Math.max(el,.001),score:Math.round(st.hits*acc/100*1000/Math.max(avg(st.rt),150))}}
+function end(){const s=stats(),nb=s.score>best;if(nb){best=s.score;localStorage.aimBest=best}
+ const sd=st.rt.length?Math.sqrt(avg(st.rt.map(v=>(v-s.rt)**2))):0;
+ show(`RESULTS${nb?'  (new best!)':''}\n\nscore      ${s.score}   best ${best}\nhits       ${st.hits}\nmisses     ${st.miss}\naccuracy   ${s.acc.toFixed(1)}%\navg time   ${s.rt.toFixed(0)} ms  (±${sd.toFixed(0)})\noff-center ${s.err.toFixed(0)}% of radius\ntargets/s  ${s.tps.toFixed(2)}\nmax combo  ${st.maxc}`);st=null}
+function loop(t){requestAnimationFrame(loop);x.clearRect(0,0,W,H);if(!st)return;
+ const el=t-st.t0;if(el>=DUR){end();return}
+ const p=st.cur,age=t-p.t;
+ if(age>LIFE){st.miss++;st.combo=0;st.fx.push({x:p.x,y:p.y,t,h:0});spawn(t)}
+ const k=Math.max(0,1-age/LIFE);
+ // approach ring
+ x.lineWidth=2;x.strokeStyle='#000';x.beginPath();x.arc(p.x,p.y,st.r*(1+2*k),0,7);x.stroke();
+ x.lineWidth=4;x.fillStyle='#fff';x.beginPath();x.arc(p.x,p.y,st.r,0,7);x.fill();x.stroke();
+ x.fillStyle='#000';x.beginPath();x.arc(p.x,p.y,2,0,7);x.fill();
+ st.fx=st.fx.filter(f=>t-f.t<300);
+ for(const f of st.fx){const a=1-(t-f.t)/300;x.globalAlpha=a;x.lineWidth=2;x.beginPath();
+  if(f.h)x.arc(f.x,f.y,st.r*(1+(1-a)*.5),0,7);else{x.moveTo(f.x-8,f.y-8);x.lineTo(f.x+8,f.y+8);x.moveTo(f.x+8,f.y-8);x.lineTo(f.x-8,f.y+8)}x.stroke()}
+ x.globalAlpha=1;const s=stats();
+ hud.textContent=`time ${((DUR-el)/1000).toFixed(1)}  hits ${st.hits}  miss ${st.miss}  acc ${s.acc.toFixed(1)}%  avg ${s.rt.toFixed(0)}ms  combo ${st.combo}`}
+requestAnimationFrame(loop);
+show(`AIMTRAIN\n\nbest score ${best}`);
+</script></body></html>
