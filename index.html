@@ -34,7 +34,7 @@ button:focus-visible{outline:2px solid var(--fg);outline-offset:1px}
 <div id="cfg"></div>
 <main class="mid"><div id="big"></div><pre id="res"></pre><button id="go" class="start">start ▸</button><pre id="help"></pre></main>
 <footer id="foot"></footer>
-<div hidden><select id="mode"><option value="aim">aim</option><option value="mania">mania 4k</option><option value="taiko">taiko</option><option value="orbit">orbit (adofai-style)</option></select><select id="dur"><option value="30">30s</option><option value="60">60s</option><option value="0">unlimited</option></select><select id="diff"><option value="custom">custom</option><option value="easy">easy</option><option value="normal">normal</option><option value="hard">hard</option><option value="insane">insane</option><option value="expert">expert</option><option value="adapt">adaptive</option></select><select id="trail"><option value="1">on</option><option value="0">off</option></select><select id="bpm"><option>90</option><option selected>120</option><option>150</option><option>180</option><option>210</option><option>240</option></select><select id="vol"><option value="0">off</option><option value="0.2">low</option><option value="0.45" selected>mid</option><option value="0.8">high</option></select><select id="sz"><option value="1">normal</option><option value="0.7">small</option><option value="1.4">large</option></select><select id="pre"><option value="3">slow (3 beats)</option><option value="2" selected>normal (2 beats)</option><option value="1.5">fast (1.5 beats)</option><option value="1">very fast (1 beat)</option></select><select id="pat"><option value="mix">mixed</option><option value="jump">jumps</option><option value="stream">streams</option><option value="double">doubles</option><option value="sc">circle + slider</option><option value="stack">stacks</option><option value="tri">triangles</option><option value="back">back and forth</option></select><select id="tpat"><option value="mix">mixed</option><option value="alt">alternating dkdk</option><option value="tri">triplets ddk / kkd</option><option value="burst">1/4 bursts (5)</option><option value="fc">finger control</option><option value="stream">1/4 streams</option><option value="mono">mono don/kat runs</option></select><select id="opat"><option value="mixed">mixed</option><option value="straight">straight</option><option value="square">90° turns</option><option value="zigzag">zigzag</option><option value="thirds">thirds (60° / 120°)</option><option value="swing">swing (0.75 / 1.25)</option></select><select id="msnap"><option value="1">1/1</option><option value="2" selected>1/2</option><option value="4">1/4</option></select><select id="spd"><option value="0.8">slow</option><option value="1.2" selected>normal</option><option value="1.8">fast</option></select></div>
+<div hidden><select id="mode"><option value="aim">aim</option><option value="mania">mania 4k</option><option value="taiko">taiko</option><option value="orbit">orbit (adofai-style)</option><option value="catch">catch</option></select><select id="dur"><option value="30">30s</option><option value="60">60s</option><option value="0">unlimited</option></select><select id="diff"><option value="custom">custom</option><option value="easy">easy</option><option value="normal">normal</option><option value="hard">hard</option><option value="insane">insane</option><option value="expert">expert</option><option value="adapt">adaptive</option></select><select id="trail"><option value="1">on</option><option value="0">off</option></select><select id="bpm"><option>90</option><option selected>120</option><option>150</option><option>180</option><option>210</option><option>240</option></select><select id="vol"><option value="0">off</option><option value="0.2">low</option><option value="0.45" selected>mid</option><option value="0.8">high</option></select><select id="sz"><option value="1">normal</option><option value="0.7">small</option><option value="1.4">large</option></select><select id="pre"><option value="3">slow (3 beats)</option><option value="2" selected>normal (2 beats)</option><option value="1.5">fast (1.5 beats)</option><option value="1">very fast (1 beat)</option></select><select id="pat"><option value="mix">mixed</option><option value="jump">jumps</option><option value="stream">streams</option><option value="double">doubles</option><option value="sc">circle + slider</option><option value="stack">stacks</option><option value="tri">triangles</option><option value="back">back and forth</option></select><select id="tpat"><option value="mix">mixed</option><option value="alt">alternating dkdk</option><option value="tri">triplets ddk / kkd</option><option value="burst">1/4 bursts (5)</option><option value="fc">finger control</option><option value="stream">1/4 streams</option><option value="mono">mono don/kat runs</option></select><select id="cpat"><option value="mix">mixed</option><option value="walk">walk jumps</option><option value="dash">dash jumps</option><option value="juice">juice streams</option><option value="zig">zigzags</option></select><select id="opat"><option value="mixed">mixed</option><option value="straight">straight</option><option value="square">90° turns</option><option value="zigzag">zigzag</option><option value="thirds">thirds (60° / 120°)</option><option value="swing">swing (0.75 / 1.25)</option></select><select id="msnap"><option value="1">1/1</option><option value="2" selected>1/2</option><option value="4">1/4</option></select><select id="spd"><option value="0.8">slow</option><option value="1.2" selected>normal</option><option value="1.8">fast</option></select></div>
 </div>
 <script>
 const $=id=>document.getElementById(id),c=$('c'),cx=c.getContext('2d'),hud=$('hud'),menu=$('menu');
@@ -60,7 +60,7 @@ function hitSound(){if(ac&&master.gain.value)noise(ac.currentTime,.03,.5,3000)}
 function sched(now){if(!ac||!master.gain.value)return;while(st.ab*st.bl<now+200){const tt=st.ab*st.bl;if(tt>now-30)beat(st.ab,ac.currentTime+Math.max(0,(tt-now)/1000),st.bl/1000);st.ab++}}
 // ---------- menu ----------
 function help(){const m=$('mode').value;renderCfg();
- $('help').textContent=m=='aim'?'hit circles on the beat (click, or hover + z/x)\nsliders: hold and follow the ball, arrows = bounce back\nspinners: hold and spin around the center\nesc ends the round':m=='orbit'?'press any key (or click) when the orbiting planet reaches the next tile\nthe turn angle sets the rhythm: straight = 1 beat, 90° = 1/2 or 3/2\nesc ends the round':m=='mania'?'press d f j k as notes reach the line, on the beat\nlong notes: hold until the tail reaches the line\nesc ends the round':'filled = don: f or j   ring = kat: d or k\nhit when the note reaches the left circle\nlong bars = drumroll: hit either key as fast as you can\nesc ends the round'}
+ $('help').textContent=m=='aim'?'hit circles on the beat (click, or hover + z/x)\nsliders: hold and follow the ball, arrows = bounce back\nspinners: hold and spin around the center\nesc ends the round':m=='catch'?'move with left / right arrows, hold shift to dash\ncatch fruits and droplets on the plate, bananas are bonus\nfruits with a thick outline need a dash\nesc ends the round':m=='orbit'?'press any key (or click) when the orbiting planet reaches the next tile\nthe turn angle sets the rhythm: straight = 1 beat, 90° = 1/2 or 3/2\nesc ends the round':m=='mania'?'press d f j k as notes reach the line, on the beat\nlong notes: hold until the tail reaches the line\nesc ends the round':'filled = don: f or j   ring = kat: d or k\nhit when the note reaches the left circle\nlong bars = drumroll: hit either key as fast as you can\nesc ends the round'}
 $('mode').onchange=help;
 const PRE={easy:[90,1.4,3,'1',0.8,'jump',.7],normal:[120,1,2,'2',1.2,'mix',1],hard:[150,1,1.5,'2',1.2,'mix',1.2],insane:[180,.85,1,'4',1.8,'mix',1.4],expert:[210,.7,1,'4',1.8,'mix',1.6]};
 $('diff').onchange=()=>{const d=PRE[$('diff').value];if(!d)return;[$('bpm').value,$('sz').value,$('pre').value,$('msnap').value,$('spd').value,$('pat').value]=d.slice(0,6).map(String)};
@@ -69,8 +69,8 @@ function adapt(ok){if(!st.ad)return;st.rec.push(ok?1:0);if(st.rec.length<16)retu
 function setLvl(){const L=st.lvl;st.sp=.55+.12*L;if(st.m=='aim')st.pre=Math.max(380,st.pre0-55*(L-3));st.dens=Math.min(1,.45+.07*L)}$('go').onclick=start;
 function show(t,big=[]){$('res').textContent=t;$('big').innerHTML=big.map(([k,v])=>`<div class="stat"><small>${k}</small><b>${v}</b></div>`).join('');menu.hidden=false;help()}
 const G=[['dur','time','all'],['bpm','bpm','all'],['diff','difficulty','all'],['vol','music','all'],['sz','size','aim'],['pre','approach','aim'],['pat','pattern','aim'],['trail','trail','aim'],
- ['msnap','snap','mania'],['spd','scroll','mania taiko'],['tpat','pattern','taiko'],['opat','path','orbit']];
-const KB={all:[['space','start'],['tab','restart'],['esc','stop']],aim:[['click / z / x','hit'],['hold','sliders, spinners']],mania:[['d f j k','lanes'],['hold','long notes']],taiko:[['f j','don'],['d k','kat'],['any','drumroll']],orbit:[['any key / click','hit']]};
+ ['msnap','snap','mania'],['spd','scroll','mania taiko catch'],['cpat','pattern','catch'],['tpat','pattern','taiko'],['opat','path','orbit']];
+const KB={all:[['space','start'],['tab','restart'],['esc','stop']],aim:[['click / z / x','hit'],['hold','sliders, spinners']],mania:[['d f j k','lanes'],['hold','long notes']],taiko:[['f j','don'],['d k','kat'],['any','drumroll']],orbit:[['any key / click','hit']],catch:[['← →','move'],['shift','dash']]};
 const kb=l=>l.map(([k,v])=>`<span><kbd>${k}</kbd> ${v}</span>`).join('');
 function grp(id,label){const sel=$(id),g=document.createElement('div');g.className='grp';if(label)g.innerHTML=`<small>${label}</small>`;
  for(const o of sel.options){const b=document.createElement('button');b.className='opt'+(o.value==sel.value?' on':'');b.textContent=o.text;
@@ -78,10 +78,11 @@ function grp(id,label){const sel=$(id),g=document.createElement('div');g.classNa
 function renderCfg(){const m=$('mode').value,cf=$('cfg');cf.innerHTML='';const t=document.createElement('div');t.className='line tabs';t.append(grp('mode'));cf.append(t);
  for(const sc of ['all','mode']){const l=document.createElement('div');l.className='line';for(const[id,lb,w]of G)if(sc=='all'?w=='all':w.split(' ').includes(m))l.append(grp(id,lb));if(l.childElementCount)cf.append(l)}
  $('foot').innerHTML=kb(KB.all)+kb(KB[m])}
-$('keys').onclick=()=>show('KEYBINDS\n\nanywhere   space / enter  start round\n           tab            restart round\n           esc            stop and show results\n\naim        click, z, x    hit circle (hover it)\n           hold           follow sliders, spin spinners\nmania      d f j k        lanes 1-4, hold for long notes\ntaiko      f j            don (filled)\n           d k            kat (ring)\n           any of them    drumroll bars\norbit      any key/click  hit the next tile\n');
+$('keys').onclick=()=>show('KEYBINDS\n\nanywhere   space / enter  start round\n           tab            restart round\n           esc            stop and show results\n\naim        click, z, x    hit circle (hover it)\n           hold           follow sliders, spin spinners\nmania      d f j k        lanes 1-4, hold for long notes\ntaiko      f j            don (filled)\n           d k            kat (ring)\n           any of them    drumroll bars\norbit      any key/click  hit the next tile\ncatch      left / right   move the catcher\n           shift          dash (needed for outlined fruits)\n');
 function start(){audio();const m=$('mode').value,bl=60000/+$('bpm').value;menu.hidden=true;
  const dd=PRE[$('diff').value];st={m,bl,ad:$('diff').value=='adapt',lvl:3,lmax:3,rec:[],sp:dd?dd[6]:1,dens:1,trail:+$('trail').value,tr:[],bpm:+$('bpm').value,start:performance.now()+4*bl,dur:+$('dur').value*1000,ab:-4,pops:[],combo:0,maxc:0,errs:[]};
  if(m=='aim')Object.assign(st,{r:36*$('sz').value,pre:Math.min(1800,Math.max(320,$('pre').value*bl)),pre0:Math.min(1800,Math.max(320,$('pre').value*bl)),pat:$('pat').value,objs:[],nextT:0,lx:W/2,ly:H/2,j:[0,0,0,0],score:0,off:[],track:[],spins:[],mis:0,down:0,mx:W/2,my:H/2});
+ else if(m=='catch'){const PW=Math.min(W-60,720);Object.assign(st,{cpat:$('cpat').value,spd:+$('spd').value*.55,PW,ox:(W-PW)/2,CW:Math.max(70,PW*.13),cx:PW/2,objs:[],next:0,lx:PW/2,kl:0,kr:0,dash:0,j:[0,0],dj:[0,0],ban:[0,0],dashMs:0,lastF:0,ptime:performance.now()})}
  else if(m=='orbit')Object.assign(st,{opat:$('opat').value,tiles:[{x:0,y:0,T:0,ein:Math.PI}],k:1,j:[0,0,0,0],te:0,camx:0,camy:0,pops:[]})
  else if(m=='taiko')Object.assign(st,{tpat:$('tpat').value,spd:+$('spd').value*.8,notes:[],next:0,j:[0,0,0],held:[0,0,0,0],last:null,typ:[[0,0],[0,0]],rolls:0,rollMs:0})
  else Object.assign(st,{snap:+$('msnap').value,spd:+$('spd').value,notes:[],next:0,j:[0,0,0,0,0],held:[0,0,0,0],lastLane:-1,last:null,busy:[-1e9,-1e9,-1e9,-1e9],hold:[null,null,null,null],ht:[0,0]});if(st.ad)setLvl()}
@@ -246,6 +247,36 @@ function orbitDraw(now){while(st.tiles.length<st.k+40)oadd();
  return `acc ${oAcc().toFixed(2)}%  combo ${st.combo}  perfect:${st.j[0]} early/late:${st.j[1]} way off:${st.j[2]} miss:${st.j[3]}  UR ${(sd(st.errs)*10).toFixed(0)}`}
 function orbitEnd(el){const a=oAcc(),m=avg(st.errs);
  return `ORBIT RESULTS @ ${st.bpm} bpm, ${st.opat}\n\naccuracy   ${a.toFixed(2)}%\nperfect ${st.j[0]}  early/late ${st.j[1]}  way off ${st.j[2]}  miss ${st.j[3]}\ntoo early  ${st.te} presses ignored\nmax combo  ${st.maxc}\nunstable   ${(sd(st.errs)*10).toFixed(0)} UR\nmean error ${m.toFixed(1)} ms (${m<0?'early':'late'})\ntiles      ${st.k-1}\nduration   ${(Math.max(0,el)/1000).toFixed(0)}s\n`}
+// ---------- catch ----------
+const walkV=()=>st.PW/1100,dashV=()=>st.PW/520;
+function cadd(T,x,k,h){st.objs.push({T,x:Math.max(12,Math.min(st.PW-12,x)),k,h})}
+function cgen(now){const hy=H-90;while(st.next<now+hy/st.spd&&(!st.dur||st.next<st.dur-300)){
+ const b=st.bl,T=st.next,R=Math.random,P=st.cpat=='mix'?pick(['walk','walk','dash','juice','zig']):st.cpat;
+ if(st.cpat=='mix'&&R()<.05&&T>b*4&&(!st.dur||T+b*6<st.dur)){for(let t=T;t<T+b*4;t+=b/4)cadd(t,R()*st.PW,'b');st.next=T+b*5;continue}
+ if(R()>st.dens){st.next+=b;continue}
+ const jump=(dt,dash)=>{const v=(dash?dashV():walkV())*dt*.85,lo=dash?walkV()*dt+st.CW*.6:0,d=lo+R()*Math.max(10,v-lo),dir=st.lx<d?1:st.lx>st.PW-d?-1:R()<.5?-1:1;return Math.max(12,Math.min(st.PW-12,st.lx+dir*d))};
+ if(P=='juice'){const len=b*pick([1,1.5,2]),x1=jump(len,0),x0=st.lx;cadd(T,x0,'f');for(let t=b/4;t<len;t+=b/4)cadd(T+t,x0+(x1-x0)*t/len,'d');cadd(T+len,x1,'f');st.lx=x1;st.next=T+len+b*pick([1,1,.5]);continue}
+ if(P=='zig'){let t=T;for(let i=0;i<6;i++){const x=i%2?Math.min(st.PW-12,st.lx+st.CW*1.6):Math.max(12,st.lx-st.CW*1.6);cadd(t,x,'f');st.lx=x;t+=b/2}st.next=t+b/2;continue}
+ const dt=b*pick([1,1,.5,1.5,2]),dash=P=='dash'?R()<.7:R()<.15;const x=jump(dt,dash);cadd(T+dt,x,'f',dash);st.lx=x;st.next=T+dt}}
+function cjudge(o,ok){if(o.k=='b'){st.ban[1]++;if(ok){st.ban[0]++;hitSound()}return}
+ (o.k=='f'?st.j:st.dj)[ok?0:1]++;adapt(ok);if(ok){st.combo++;st.maxc=Math.max(st.maxc,st.combo);if(o.k=='f')hitSound()}else st.combo=0;
+ if(o.k=='f'&&!ok)st.pops.push({x:st.ox+o.x,y:H-110,v:0,t:performance.now()})}
+function cAcc(){const n=st.j[0]+st.j[1]+st.dj[0]+st.dj[1];return n?(st.j[0]+st.dj[0])/n*100:100}
+function catchDraw(now){cgen(now);const pt=performance.now(),dt=Math.min(50,pt-st.ptime);st.ptime=pt;const hy=H-90,ox=st.ox,dir=st.kr-st.kl;
+ if(dir){st.cx=Math.max(0,Math.min(st.PW,st.cx+dir*(st.dash?dashV():walkV())*dt));if(st.dash)st.dashMs+=dt}
+ for(const o of st.objs)if(!o.done&&now>=o.T){o.done=1;cjudge(o,Math.abs(o.x-st.cx)<=st.CW/2+(o.k=='d'?4:12))}
+ st.objs=st.objs.filter(o=>!o.done);
+ cx.strokeStyle='#000';cx.globalAlpha=.15;cx.lineWidth=2;cx.beginPath();cx.moveTo(ox,0);cx.lineTo(ox,H);cx.moveTo(ox+st.PW,0);cx.lineTo(ox+st.PW,H);cx.stroke();cx.globalAlpha=1;
+ for(const o of st.objs){const y=hy-(o.T-now)*st.spd,x=ox+o.x;if(y<-20)continue;cx.beginPath();
+  if(o.k=='f'){cx.arc(x,y,15,0,PI2);cx.fillStyle='#fff';cx.fill();cx.lineWidth=o.h?6:3;cx.stroke()}
+  else if(o.k=='d'){cx.arc(x,y,6,0,PI2);cx.fillStyle='#000';cx.fill()}
+  else{cx.arc(x,y,9,0,PI2);cx.fillStyle='#9a9a9a';cx.fill()}}
+ const px=ox+st.cx;if(st.dash&&dir){cx.globalAlpha=.25;cx.fillStyle='#000';cx.fillRect(px-dir*24-st.CW/2,hy,st.CW,10);cx.globalAlpha=1}
+ cx.fillStyle='#000';cx.fillRect(px-st.CW/2,hy,st.CW,10);cx.beginPath();cx.arc(px,hy+22,10,0,PI2);cx.fill();cx.fillRect(px-9,hy+34,18,30);
+ const n=st.j[0]+st.j[1];
+ return `acc ${cAcc().toFixed(2)}%  combo ${st.combo}  fruits ${st.j[0]}/${n}  droplets ${st.dj[0]}/${st.dj[0]+st.dj[1]}  bananas ${st.ban[0]}/${st.ban[1]}`}
+function catchEnd(el){const a=cAcc();
+ return `CATCH RESULTS @ ${st.bpm} bpm, ${st.cpat}\n\naccuracy   ${a.toFixed(2)}%\nfruits     ${st.j[0]} caught, ${st.j[1]} missed\ndroplets   ${st.dj[0]} caught, ${st.dj[1]} missed\nbananas    ${st.ban[0]} / ${st.ban[1]}\nmax combo  ${st.maxc}\ndash time  ${(st.dashMs/1000).toFixed(1)}s\nduration   ${(Math.max(0,el)/1000).toFixed(0)}s\n`}
 // ---------- records ----------
 function hist(){try{return JSON.parse(localStorage.hist||'[]')}catch(e){return[]}}
 const runVal=r=>r.m=='aim'?r.score:r.acc,fmt=(r,v)=>r.m=='aim'?String(Math.round(v)):v.toFixed(2)+'%';
@@ -262,9 +293,9 @@ $('recs').onclick=records;
 $('clr').onclick=()=>{const b=$('clr');if(b.dataset.arm){try{localStorage.removeItem('hist')}catch(e){}b.textContent='clear records';delete b.dataset.arm;show('RECORDS\n\nrecords cleared\n')}else{b.dataset.arm=1;b.textContent='click again to clear';setTimeout(()=>{b.textContent='clear records';delete b.dataset.arm},3000)}};
 // ---------- shared ----------
 const songNow=()=>performance.now()-st.start;
-function end(){const el=songNow(),ad=st.ad?`adaptive level reached ${st.lmax}, ended at ${st.lvl}\n`:'',M=st.m,r=ad+(M=='aim'?aimEnd():M=='taiko'?taikoEnd(el):M=='orbit'?orbitEnd(el):maniaEnd(el)),
- acc=M=='aim'?aimAcc():M=='taiko'?tAcc():M=='orbit'?oAcc():mAcc(),n=st.j.reduce((a,b)=>a+b,0),cfg=st.bpm+' '+(M=='aim'?st.pat:M=='taiko'?st.tpat:M=='orbit'?st.opat:'1/'+st.snap)+(st.ad?' adaptive':''),
- big=[...(M=='aim'?[['score',st.score]]:[]),['acc',acc.toFixed(2)+'%'],['UR',Math.round(sd(st.errs)*10)],['combo',st.maxc+'x']],rc=n>=10?saveRun({t:Date.now(),m:M,cfg,acc,score:st.score||0,ur:Math.round(sd(st.errs)*10)}):'\n(round too short to save, needs 10+ notes)\n';st=null;cx.clearRect(0,0,W,H);hud.textContent='';show(r+rc,big)}
+function end(){const el=songNow(),ad=st.ad?`adaptive level reached ${st.lmax}, ended at ${st.lvl}\n`:'',M=st.m,r=ad+(M=='aim'?aimEnd():M=='taiko'?taikoEnd(el):M=='orbit'?orbitEnd(el):M=='catch'?catchEnd(el):maniaEnd(el)),
+ acc=M=='aim'?aimAcc():M=='taiko'?tAcc():M=='orbit'?oAcc():M=='catch'?cAcc():mAcc(),n=st.j.reduce((a,b)=>a+b,0),cfg=st.bpm+' '+(M=='aim'?st.pat:M=='taiko'?st.tpat:M=='orbit'?st.opat:M=='catch'?st.cpat:'1/'+st.snap)+(st.ad?' adaptive':''),
+ big=[...(M=='aim'?[['score',st.score]]:[]),['acc',acc.toFixed(2)+'%'],...(M=='catch'?[['missed',st.j[1]+st.dj[1]]]:[['UR',Math.round(sd(st.errs)*10)]]),['combo',st.maxc+'x']],rc=n>=10?saveRun({t:Date.now(),m:M,cfg,acc,score:st.score||0,ur:Math.round(sd(st.errs)*10)}):'\n(round too short to save, needs 10+ notes)\n';st=null;cx.clearRect(0,0,W,H);hud.textContent='';show(r+rc,big)}
 onmousemove=e=>{if(st&&st.m=='aim'){st.mx=e.clientX;st.my=e.clientY;if(st.trail)st.tr.push([e.clientX,e.clientY,performance.now()])}};
 c.onmousedown=e=>{e.preventDefault();if(st&&st.m=='aim')press(songNow());else if(st&&st.m=='orbit')opress(songNow())};
 onmouseup=()=>{if(st&&st.m=='aim')st.down=Math.max(0,st.down-1)};
@@ -273,16 +304,18 @@ onkeydown=e=>{if(e.repeat)return;const k=e.key.toLowerCase();
  if(!st){if((k==' '||k=='enter')&&document.activeElement.tagName!='BUTTON'){e.preventDefault();start()}return}
  if(k=='escape')return end();
  if(st.m=='orbit'){opress(songNow());return}
+ if(st.m=='catch'){if(k=='arrowleft')st.kl=1;else if(k=='arrowright')st.kr=1;else if(k=='shift')st.dash=1;e.preventDefault();return}
  if(st.m=='aim'&&(k=='z'||k=='x'))press(songNow());
  if(st.m=='mania'){const l=KEYS.indexOf(k);if(l>=0){st.held[l]=1;mpress(l,songNow())}}
  if(st.m=='taiko'){const l=KEYS.indexOf(k);if(l>=0){st.held[l]=1;tpress(l==0||l==3?1:0,songNow())}}};
 onkeyup=e=>{if(!st)return;const k=e.key.toLowerCase();
+ if(st.m=='catch'){if(k=='arrowleft')st.kl=0;else if(k=='arrowright')st.kr=0;else if(k=='shift')st.dash=0;return}
  if(st.m=='aim'&&(k=='z'||k=='x'))st.down=Math.max(0,st.down-1);
  if(st.m!='aim'){const l=KEYS.indexOf(k);if(l>=0){st.held[l]=0;if(st.m=='mania'&&st.hold[l]){const n=st.hold[l],t=songNow();n.done=1;holdEnd(n,t>=n.e-MISS)}}}};
 oncontextmenu=e=>e.preventDefault();
 function loop(){requestAnimationFrame(loop);if(!st)return;cx.clearRect(0,0,W,H);cx.font='14px '+F;
  const now=songNow();if(st.dur&&now>=st.dur+(st.m=='aim'?200:MISS))return end();sched(now);
- const h=st.m=='aim'?aimDraw(now):st.m=='taiko'?taikoDraw(now):st.m=='orbit'?orbitDraw(now):maniaDraw(now);
+ const h=st.m=='aim'?aimDraw(now):st.m=='taiko'?taikoDraw(now):st.m=='orbit'?orbitDraw(now):st.m=='catch'?catchDraw(now):maniaDraw(now);
  cx.globalAlpha=1;cx.textAlign='center';cx.fillStyle='#000';
  if(now<0){cx.font='bold 40px '+F;cx.fillText(Math.ceil(-now/st.bl),W/2,80);cx.font='14px '+F}
  if(st.pops&&st.m!='orbit')for(const p of st.pops=st.pops.filter(p=>performance.now()-p.t<600)){const a=(performance.now()-p.t)/600;cx.globalAlpha=1-a;cx.font='bold 18px '+F;cx.fillText(p.v?p.v:'×',p.x,p.y-(st.r||0)-8-a*14)}
