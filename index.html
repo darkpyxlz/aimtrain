@@ -1,54 +1,104 @@
-<!doctype html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>aimtrain</title>
+<title>Aimtrain</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
-html,body{margin:0;height:100%;background:#fff;color:#000;font:14px monospace;overflow:hidden;user-select:none}
+/* single deliberate look: white ground, black ink (requested) */
+:root{--bg:#fff;--fg:#000;color-scheme:light}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font:14px ui-monospace,Menlo,Consolas,monospace;overflow:hidden;user-select:none}
 canvas{display:block;cursor:crosshair}
-#hud{position:fixed;top:8px;left:10px;pointer-events:none;white-space:pre}
-#menu{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
-#box{border:2px solid #000;padding:20px;background:#fff;text-align:center;white-space:pre;line-height:1.6}
-button,select{font:inherit;background:#fff;border:2px solid #000;padding:4px 12px;cursor:pointer}
-</style></head><body>
+#hud{position:fixed;top:calc(8px + env(safe-area-inset-top,0px));left:max(12px,env(safe-area-inset-left,0px));pointer-events:none;white-space:pre;font-variant-numeric:tabular-nums}
+#menu{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:16px}
+#menu[hidden]{display:none}
+#box{border:2px solid var(--fg);padding:20px;background:var(--bg);white-space:pre;line-height:1.6;font-variant-numeric:tabular-nums;max-width:100%;overflow:auto}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px}
+button,select{font:inherit;color:var(--fg);background:var(--bg);border:2px solid var(--fg);padding:4px 10px;cursor:pointer}
+button:focus-visible,select:focus-visible{outline:3px solid var(--fg);outline-offset:2px}
+</style>
 <canvas id="c"></canvas><div id="hud"></div>
-<div id="menu"><div id="box"></div></div>
+<div id="menu"><div id="box"><div id="res"></div>
+<div class="row">mode <select id="mode"><option value="aim">aim</option><option value="mania">mania 4k</option></select>
+ time <select id="dur"><option value="30">30s</option><option value="60">60s</option><option value="0">unlimited</option></select></div>
+<div class="row" id="aimopt">size <select id="sz"><option value="1">normal</option><option value="0.7">small</option><option value="1.4">large</option></select>
+ life <select id="life"><option value="1200">1.2s</option><option value="900">0.9s</option><option value="1600">1.6s</option></select></div>
+<div class="row" id="manopt" hidden>notes/s <select id="nps"><option>4</option><option selected>6</option><option>8</option><option>10</option><option>13</option></select>
+ speed <select id="spd"><option value="0.8">slow</option><option value="1.2" selected>normal</option><option value="1.8">fast</option></select></div>
+<div class="row"><button id="go">start (space)</button></div>
+<div id="help"></div></div></div>
 <script>
-const c=document.getElementById('c'),x=c.getContext('2d'),hud=document.getElementById('hud'),menu=document.getElementById('menu'),box=document.getElementById('box');
+const $=id=>document.getElementById(id),c=$('c'),x=c.getContext('2d'),hud=$('hud'),menu=$('menu');
 let W,H;function rs(){W=c.width=innerWidth;H=c.height=innerHeight}onresize=rs;rs();
-const R=36,LIFE=1200,DUR=30000; // radius px, circle lifetime ms, round length ms
-let st=null,best=+localStorage.aimBest||0;
-function show(t){box.innerHTML=t+`\n\nsize <select id=sz><option value=1>normal</option><option value=0.7>small</option><option value=1.4>large</option></select>\n\n<button id=go>start (space)</button>\nclick circles before they shrink away\nkeys z / x also click`;menu.style.display='flex';document.getElementById('go').onclick=start}
-function start(){const s=+document.getElementById('sz').value;menu.style.display='none';
- st={t0:performance.now(),r:R*s,hits:0,miss:0,clicks:0,combo:0,maxc:0,rt:[],err:[],cur:null,last:null,mx:W/2,my:H/2,fx:[]};spawn(st.t0)}
-function spawn(t){const r=st.r,p=st.cur;let nx,ny;do{nx=r+Math.random()*(W-2*r);ny=r+40+Math.random()*(H-2*r-40)}while(p&&Math.hypot(nx-p.x,ny-p.y)<r*3);
- st.cur={x:nx,y:ny,t,sx:st.mx,sy:st.my}}
-function click(){if(!st)return;const t=performance.now(),p=st.cur;st.clicks++;
- const d=Math.hypot(st.mx-p.x,st.my-p.y);
+const ls={get(k){try{return +localStorage[k]||0}catch(e){return 0}},set(k,v){try{localStorage[k]=v}catch(e){}}};
+const avg=a=>a.length?a.reduce((s,v)=>s+v,0)/a.length:0,sd=a=>{const m=avg(a);return Math.sqrt(avg(a.map(v=>(v-m)**2)))};
+let st=null;
+function help(){const m=$('mode').value;$('aimopt').hidden=m!='aim';$('manopt').hidden=m!='mania';
+ $('help').textContent=m=='aim'?'click circles (or hover + z/x) before the ring closes\nesc ends the round':'press d f j k when notes reach the line\nesc ends the round'}
+$('mode').onchange=help;$('go').onclick=start;
+function show(t){$('res').textContent=t;menu.hidden=false;help()}
+function start(){const m=$('mode').value,dur=+$('dur').value*1000,t=performance.now();menu.hidden=true;
+ st={m,t0:t,dur,fx:[]};
+ if(m=='aim'){Object.assign(st,{r:36*$('sz').value,life:+$('life').value,hits:0,miss:0,clicks:0,combo:0,maxc:0,rt:[],err:[],mx:W/2,my:H/2,cur:null});spawn(t)}
+ else Object.assign(st,{nps:+$('nps').value,spd:+$('spd').value,notes:[],next:t+1500,j:[0,0,0,0],combo:0,maxc:0,errs:[],held:[0,0,0,0],lastLane:-1})}
+// ---------- aim ----------
+function spawn(t){const r=st.r,p=st.cur;let nx,ny,n=0;do{nx=r+Math.random()*(W-2*r);ny=r+40+Math.random()*(H-2*r-40)}while(p&&Math.hypot(nx-p.x,ny-p.y)<r*3&&++n<50);st.cur={x:nx,y:ny,t}}
+function aimClick(){const t=performance.now(),p=st.cur,d=Math.hypot(st.mx-p.x,st.my-p.y);st.clicks++;
  if(d<=st.r){st.hits++;st.combo++;st.maxc=Math.max(st.maxc,st.combo);st.rt.push(t-p.t);st.err.push(d/st.r);st.fx.push({x:p.x,y:p.y,t,h:1});spawn(t)}
  else{st.combo=0;st.miss++;st.fx.push({x:st.mx,y:st.my,t,h:0})}}
-onmousemove=e=>{if(st){st.mx=e.clientX;st.my=e.clientY}};
-c.onmousedown=e=>{e.preventDefault();click()};
-onkeydown=e=>{if(e.repeat)return;const k=e.key.toLowerCase();if(k=='z'||k=='x')click();else if(k==' '&&!st)start();else if(k=='escape'&&st)end()};
-oncontextmenu=e=>e.preventDefault();
-const avg=a=>a.length?a.reduce((s,v)=>s+v,0)/a.length:0;
-function stats(){const acc=st.clicks?st.hits/st.clicks*100:0,el=(performance.now()-st.t0)/1000;
- return{acc,rt:avg(st.rt),err:avg(st.err)*100,tps:st.hits/Math.max(el,.001),score:Math.round(st.hits*acc/100*1000/Math.max(avg(st.rt),150))}}
-function end(){const s=stats(),nb=s.score>best;if(nb){best=s.score;localStorage.aimBest=best}
- const sd=st.rt.length?Math.sqrt(avg(st.rt.map(v=>(v-s.rt)**2))):0;
- show(`RESULTS${nb?'  (new best!)':''}\n\nscore      ${s.score}   best ${best}\nhits       ${st.hits}\nmisses     ${st.miss}\naccuracy   ${s.acc.toFixed(1)}%\navg time   ${s.rt.toFixed(0)} ms  (±${sd.toFixed(0)})\noff-center ${s.err.toFixed(0)}% of radius\ntargets/s  ${s.tps.toFixed(2)}\nmax combo  ${st.maxc}`);st=null}
-function loop(t){requestAnimationFrame(loop);x.clearRect(0,0,W,H);if(!st)return;
- const el=t-st.t0;if(el>=DUR){end();return}
- const p=st.cur,age=t-p.t;
- if(age>LIFE){st.miss++;st.combo=0;st.fx.push({x:p.x,y:p.y,t,h:0});spawn(t)}
- const k=Math.max(0,1-age/LIFE);
- // approach ring
- x.lineWidth=2;x.strokeStyle='#000';x.beginPath();x.arc(p.x,p.y,st.r*(1+2*k),0,7);x.stroke();
+function aimStats(){const acc=st.clicks?st.hits/st.clicks*100:0;return{acc,rt:avg(st.rt),score:Math.round(st.hits*acc/100*1000/Math.max(avg(st.rt),150))}}
+function aimDraw(t){const p=st.cur,age=t-p.t;
+ if(age>st.life){st.miss++;st.combo=0;st.fx.push({x:p.x,y:p.y,t,h:0});spawn(t);return}
+ const k=1-age/st.life;x.strokeStyle='#000';x.lineWidth=2;x.beginPath();x.arc(p.x,p.y,st.r*(1+2*k),0,7);x.stroke();
  x.lineWidth=4;x.fillStyle='#fff';x.beginPath();x.arc(p.x,p.y,st.r,0,7);x.fill();x.stroke();
  x.fillStyle='#000';x.beginPath();x.arc(p.x,p.y,2,0,7);x.fill();
  st.fx=st.fx.filter(f=>t-f.t<300);
- for(const f of st.fx){const a=1-(t-f.t)/300;x.globalAlpha=a;x.lineWidth=2;x.beginPath();
-  if(f.h)x.arc(f.x,f.y,st.r*(1+(1-a)*.5),0,7);else{x.moveTo(f.x-8,f.y-8);x.lineTo(f.x+8,f.y+8);x.moveTo(f.x+8,f.y-8);x.lineTo(f.x-8,f.y+8)}x.stroke()}
- x.globalAlpha=1;const s=stats();
- hud.textContent=`time ${((DUR-el)/1000).toFixed(1)}  hits ${st.hits}  miss ${st.miss}  acc ${s.acc.toFixed(1)}%  avg ${s.rt.toFixed(0)}ms  combo ${st.combo}`}
+ for(const f of st.fx){x.globalAlpha=1-(t-f.t)/300;x.lineWidth=2;x.beginPath();
+  if(f.h)x.arc(f.x,f.y,st.r*(1.5-x.globalAlpha*.5),0,7);else{x.moveTo(f.x-8,f.y-8);x.lineTo(f.x+8,f.y+8);x.moveTo(f.x+8,f.y-8);x.lineTo(f.x-8,f.y+8)}x.stroke()}
+ x.globalAlpha=1;const s=aimStats();
+ return `hits ${st.hits}  miss ${st.miss}  acc ${s.acc.toFixed(1)}%  avg ${s.rt.toFixed(0)}ms  combo ${st.combo}`}
+function aimEnd(el){const s=aimStats(),k='bestAim',b=ls.get(k),nb=s.score>b;if(nb)ls.set(k,s.score);
+ return `AIM RESULTS${nb?'  (new best!)':''}\n\nscore      ${s.score}   best ${Math.max(b,s.score)}\nhits       ${st.hits}\nmisses     ${st.miss}\naccuracy   ${s.acc.toFixed(1)}%\navg time   ${s.rt.toFixed(0)} ms (±${sd(st.rt).toFixed(0)})\noff-center ${(avg(st.err)*100).toFixed(0)}% of radius\ntargets/s  ${(st.hits/Math.max(el/1000,.001)).toFixed(2)}\nmax combo  ${st.maxc}\n`}
+// ---------- mania ----------
+const KEYS='dfjk',WIN=[[40,300],[80,200],[110,100],[140,50]],MISS=160,LW=70,JN=['300','200','100','50','miss'];
+function lay(){const lx=W/2-LW*2,hy=H-110;return{lx,hy,px:st.spd}} // px per ms
+function judge(i,err){st.j[i]++;if(i<4){st.combo++;st.maxc=Math.max(st.maxc,st.combo);st.errs.push(err)}else st.combo=0;st.last={i,err,t:performance.now()}}
+function maniaPress(l){const t=performance.now();st.held[l]=t;
+ let best=null;for(const n of st.notes)if(n.l==l&&!n.done&&Math.abs(t-n.t)<=MISS&&(!best||n.t<best.t))best=n;
+ if(!best)return;best.done=1;const e=t-best.t,a=Math.abs(e);judge(a>WIN[3][0]?4:WIN.findIndex(w=>a<=w[0]),e)}
+function maniaAcc(){const j=st.j,tot=j.reduce((a,b)=>a+b,0);return tot?(j[0]*300+j[1]*200+j[2]*100+j[3]*50)/(tot*300)*100:100}
+function maniaDraw(t){const{lx,hy,px}=lay();
+ if(!st.dur||t<st.t0+st.dur-1500)while(st.next<t+H/px){let l;do l=Math.random()*4|0;while(l==st.lastLane&&Math.random()<.6);st.lastLane=l;
+  st.notes.push({l,t:st.next});st.next+=1000/st.nps*(0.75+Math.random()*.5)}
+ for(const n of st.notes)if(!n.done&&t-n.t>MISS){n.done=1;judge(4,MISS)}
+ st.notes=st.notes.filter(n=>!n.done);
+ x.strokeStyle='#000';x.lineWidth=2;
+ for(let i=0;i<=4;i++){x.beginPath();x.moveTo(lx+i*LW,0);x.lineTo(lx+i*LW,H);x.stroke()}
+ for(let i=0;i<4;i++){const on=st.held[i]<0;x.fillStyle=on?'#000':'#fff';x.fillRect(lx+i*LW+6,hy+6,LW-12,30);x.strokeRect(lx+i*LW+6,hy+6,LW-12,30);
+  x.fillStyle=on?'#fff':'#000';x.textAlign='center';x.fillText(KEYS[i].toUpperCase(),lx+i*LW+LW/2,hy+25)}
+ x.lineWidth=4;x.beginPath();x.moveTo(lx,hy);x.lineTo(lx+4*LW,hy);x.stroke();
+ x.fillStyle='#000';for(const n of st.notes){const y=hy-(n.t-t)*px;if(y>-20)x.fillRect(lx+n.l*LW+4,y-10,LW-8,14)}
+ if(st.last&&t-st.last.t<400){x.font='bold 22px ui-monospace,monospace';x.globalAlpha=1-(t-st.last.t)/400;
+  x.fillText(JN[st.last.i]+(st.last.i<4&&st.last.i>0?(st.last.err<0?' early':' late'):''),W/2,hy-160);x.globalAlpha=1;x.font='14px ui-monospace,monospace'}
+ // hit error bar
+ const bx=W/2,by=hy+60;x.fillRect(bx-MISS,by,MISS*2,1);x.fillRect(bx,by-8,2,16);
+ for(const e of st.errs.slice(-30))x.fillRect(bx+e-1,by-6,2,12);
+ x.textAlign='left';
+ return `acc ${maniaAcc().toFixed(2)}%  combo ${st.combo}  ${JN.map((n,i)=>n+':'+st.j[i]).join(' ')}  UR ${(sd(st.errs)*10).toFixed(0)}`}
+function maniaEnd(el){const a=maniaAcc(),k='bestMania'+st.nps,b=ls.get(k),hits=st.j.slice(0,4).reduce((p,q)=>p+q,0),nb=hits>20&&a*100>b;if(nb)ls.set(k,Math.round(a*100));
+ const m=avg(st.errs);
+ return `MANIA RESULTS (${st.nps} notes/s)${nb?'  (new best!)':''}\n\naccuracy   ${a.toFixed(2)}%   best ${(Math.max(b,nb?a*100:0)/100).toFixed(2)}%\n300 ${st.j[0]}  200 ${st.j[1]}  100 ${st.j[2]}  50 ${st.j[3]}  miss ${st.j[4]}\nmax combo  ${st.maxc}\nunstable   ${(sd(st.errs)*10).toFixed(0)} UR\nmean error ${m.toFixed(1)} ms (${m<0?'early':'late'})\nduration   ${(el/1000).toFixed(0)}s\n`}
+// ---------- shared ----------
+function end(){const el=performance.now()-st.t0,r=st.m=='aim'?aimEnd(el):maniaEnd(el);st=null;x.clearRect(0,0,W,H);hud.textContent='';show(r)}
+onmousemove=e=>{if(st&&st.m=='aim'){st.mx=e.clientX;st.my=e.clientY}};
+c.onmousedown=e=>{e.preventDefault();if(st&&st.m=='aim')aimClick()};
+onkeydown=e=>{if(e.repeat)return;const k=e.key.toLowerCase();
+ if(!st){if(k==' '&&document.activeElement.tagName!='BUTTON'){e.preventDefault();start()}return}
+ if(k=='escape')return end();
+ if(st.m=='aim'&&(k=='z'||k=='x'))aimClick();
+ if(st.m=='mania'){const l=KEYS.indexOf(k);if(l>=0){maniaPress(l);st.held[l]=-1}}};
+onkeyup=e=>{if(st&&st.m=='mania'){const l=KEYS.indexOf(e.key.toLowerCase());if(l>=0)st.held[l]=0}};
+oncontextmenu=e=>e.preventDefault();
+function loop(t){requestAnimationFrame(loop);if(!st)return;x.clearRect(0,0,W,H);x.font='14px ui-monospace,monospace';
+ const el=t-st.t0;if(st.dur&&el>=st.dur)return end();
+ const h=st.m=='aim'?aimDraw(t):maniaDraw(t);if(!st)return;
+ hud.textContent=(st.dur?`time ${((st.dur-el)/1000).toFixed(1)}`:`time ${(el/1000).toFixed(0)}s (esc to stop)`)+'  '+(h||'')}
 requestAnimationFrame(loop);
-show(`AIMTRAIN\n\nbest score ${best}`);
-</script></body></html>
+show(`AIMTRAIN\n\nbest aim score ${ls.get('bestAim')}\n`);
+</script>
