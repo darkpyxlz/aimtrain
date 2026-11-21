@@ -154,8 +154,10 @@ function maniaDraw(now){const lx=W/2-LW*2,hy=H-110,px=st.spd,u=st.bl/st.snap;
  for(let i=0;i<4;i++){const on=st.held[i];cx.fillStyle=on?'#000':'#fff';cx.fillRect(lx+i*LW+6,hy+6,LW-12,30);cx.strokeRect(lx+i*LW+6,hy+6,LW-12,30);
   cx.fillStyle=on?'#fff':'#000';cx.fillText(KEYS[i].toUpperCase(),lx+i*LW+LW/2,hy+25)}
  cx.lineWidth=4;cx.beginPath();cx.moveTo(lx,hy);cx.lineTo(lx+4*LW,hy);cx.stroke();
- for(const n of st.notes){let y=hy-(n.t-now)*px;const X=lx+n.l*LW;if(n.e){const ye=hy-(n.e-now)*px;if(n.hit)y=hy;if(y>-20){cx.fillStyle=n.hit?'#ddd':'#fff';cx.lineWidth=2;cx.fillRect(X+14,ye,LW-28,y-ye);cx.strokeRect(X+14,ye,LW-28,y-ye);cx.fillStyle='#000';cx.fillRect(X+4,ye-4,LW-8,5)}}
-  cx.fillStyle='#000';if(y>-20)cx.fillRect(X+4,y-10,LW-8,14)}
+ cx.save();cx.beginPath();cx.rect(0,0,W,hy+2);cx.clip();
+ for(const n of st.notes){let y=hy-(n.t-now)*px;const X=lx+n.l*LW;if(n.e){const ye=hy-(n.e-now)*px;if(n.hit)y=hy;if(y>-30){cx.fillStyle=n.hit?'#6e6e6e':'#9a9a9a';cx.fillRect(X+10,ye,LW-20,y-ye);cx.fillStyle='#000';cx.fillRect(X+3,ye-6,LW-6,8)}}
+  if(y>-30){cx.fillStyle='#000';cx.fillRect(X+3,y-20,LW-6,24);cx.fillStyle='#fff';cx.fillRect(X+8,y-14,LW-16,3)}}
+ cx.restore();
  const L=st.last;if(L&&performance.now()-L.t<400){cx.font='bold 22px '+F;cx.globalAlpha=1-(performance.now()-L.t)/400;
   cx.fillText(JN[L.i]+(L.i>0&&L.i<4?(L.err<0?' early':' late'):''),W/2,hy-160);cx.globalAlpha=1;cx.font='14px '+F}
  const bx=W/2,by=hy+60;cx.fillRect(bx-MISS,by,MISS*2,1);cx.fillRect(bx-1,by-8,2,16);
