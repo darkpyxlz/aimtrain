@@ -8,97 +8,192 @@ canvas{display:block;cursor:crosshair}
 #hud{position:fixed;top:calc(8px + env(safe-area-inset-top,0px));left:max(12px,env(safe-area-inset-left,0px));pointer-events:none;white-space:pre;font-variant-numeric:tabular-nums}
 #menu{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:16px}
 #menu[hidden]{display:none}
-#box{border:2px solid var(--fg);padding:20px;background:var(--bg);white-space:pre;line-height:1.6;font-variant-numeric:tabular-nums;max-width:100%;overflow:auto}
+#box{border:2px solid var(--fg);padding:20px;background:var(--bg);white-space:pre;line-height:1.6;font-variant-numeric:tabular-nums;max-width:100%;max-height:100%;overflow:auto;box-sizing:border-box}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px}
 button,select{font:inherit;color:var(--fg);background:var(--bg);border:2px solid var(--fg);padding:4px 10px;cursor:pointer}
 button:focus-visible,select:focus-visible{outline:3px solid var(--fg);outline-offset:2px}
 </style>
 <canvas id="c"></canvas><div id="hud"></div>
 <div id="menu"><div id="box"><div id="res"></div>
-<div class="row">mode <select id="mode"><option value="aim">aim</option><option value="mania">mania 4k</option></select>
+<div class="row">mode <select id="mode"><option value="aim">aim</option><option value="mania">mania 4k</option><option value="taiko">taiko</option></select>
  time <select id="dur"><option value="30">30s</option><option value="60">60s</option><option value="0">unlimited</option></select></div>
+<div class="row">bpm <select id="bpm"><option>90</option><option selected>120</option><option>150</option><option>180</option><option>210</option><option>240</option></select>
+ music <select id="vol"><option value="0">off</option><option value="0.2">low</option><option value="0.45" selected>mid</option><option value="0.8">high</option></select></div>
 <div class="row" id="aimopt">size <select id="sz"><option value="1">normal</option><option value="0.7">small</option><option value="1.4">large</option></select>
- life <select id="life"><option value="1200">1.2s</option><option value="900">0.9s</option><option value="1600">1.6s</option></select></div>
-<div class="row" id="manopt" hidden>notes/s <select id="nps"><option>4</option><option selected>6</option><option>8</option><option>10</option><option>13</option></select>
- speed <select id="spd"><option value="0.8">slow</option><option value="1.2" selected>normal</option><option value="1.8">fast</option></select></div>
+ approach <select id="pre"><option value="1200">slow</option><option value="900" selected>normal</option><option value="600">fast</option><option value="450">very fast</option></select>
+ pattern <select id="pat"><option value="mix">mixed</option><option value="jump">jumps</option><option value="stream">streams</option><option value="double">doubles</option><option value="sc">circle + slider</option><option value="stack">stacks</option><option value="tri">triangles</option><option value="back">back and forth</option></select></div>
+<div class="row" id="tkopt" hidden>pattern <select id="tpat"><option value="mix">mixed</option><option value="alt">alternating dkdk</option><option value="tri">triplets ddk / kkd</option><option value="burst">1/4 bursts (5)</option><option value="fc">finger control</option><option value="stream">1/4 streams</option><option value="mono">mono don/kat runs</option></select></div>
+<div class="row" id="manopt" hidden><span id="msnapw">snap <select id="msnap"><option value="1">1/1</option><option value="2" selected>1/2</option><option value="4">1/4</option></select></span>
+ scroll <select id="spd"><option value="0.8">slow</option><option value="1.2" selected>normal</option><option value="1.8">fast</option></select></div>
 <div class="row"><button id="go">start (space)</button></div>
 <div id="help"></div></div></div>
 <script>
-const $=id=>document.getElementById(id),c=$('c'),x=c.getContext('2d'),hud=$('hud'),menu=$('menu');
+const $=id=>document.getElementById(id),c=$('c'),cx=c.getContext('2d'),hud=$('hud'),menu=$('menu');
 let W,H;function rs(){W=c.width=innerWidth;H=c.height=innerHeight}onresize=rs;rs();
 const ls={get(k){try{return +localStorage[k]||0}catch(e){return 0}},set(k,v){try{localStorage[k]=v}catch(e){}}};
 const avg=a=>a.length?a.reduce((s,v)=>s+v,0)/a.length:0,sd=a=>{const m=avg(a);return Math.sqrt(avg(a.map(v=>(v-m)**2)))};
+const hyp=Math.hypot,PI2=Math.PI*2,F='ui-monospace,Menlo,monospace';
 let st=null;
-function help(){const m=$('mode').value;$('aimopt').hidden=m!='aim';$('manopt').hidden=m!='mania';
- $('help').textContent=m=='aim'?'click circles (or hover + z/x) before the ring closes\nesc ends the round':'press d f j k when notes reach the line\nesc ends the round'}
+// ---------- audio: synthesized loop locked to bpm ----------
+let ac,master,nb;
+function audio(){try{if(!ac){ac=new(window.AudioContext||window.webkitAudioContext)();master=ac.createGain();master.connect(ac.destination)}ac.resume();master.gain.value=+$('vol').value}catch(e){ac=null}}
+function tone(t,f,d,type,g,f2){const o=ac.createOscillator(),v=ac.createGain();o.type=type;o.frequency.setValueAtTime(f,t);if(f2)o.frequency.exponentialRampToValueAtTime(f2,t+d);
+ v.gain.setValueAtTime(g,t);v.gain.exponentialRampToValueAtTime(.001,t+d);o.connect(v);v.connect(master);o.start(t);o.stop(t+d+.02)}
+function noise(t,d,g,hp){if(!nb){nb=ac.createBuffer(1,ac.sampleRate*.3,ac.sampleRate);const a=nb.getChannelData(0);for(let i=0;i<a.length;i++)a[i]=Math.random()*2-1}
+ const s=ac.createBufferSource(),f=ac.createBiquadFilter(),v=ac.createGain();s.buffer=nb;f.type='highpass';f.frequency.value=hp;
+ v.gain.setValueAtTime(g,t);v.gain.exponentialRampToValueAtTime(.001,t+d);s.connect(f);f.connect(v);v.connect(master);s.start(t);s.stop(t+d+.02)}
+const PROG=[[57,60,64],[53,57,60],[48,52,55],[55,59,62]],mf=n=>440*2**((n-69)/12);
+function beat(b,t,bl){if(b<0){tone(t,b==-4?1320:880,.06,'square',.12);return}
+ const ch=PROG[(b>>2)%4];tone(t,150,.3,'sine',.9,40);noise(t+bl/2,.05,.22,7000);if(b%2)noise(t,.12,.18,2500);
+ tone(t,mf(ch[0]-12),bl*.9,'triangle',.4);tone(t+bl/2,mf(ch[0]-12),bl*.4,'triangle',.25);
+ tone(t,mf(ch[b%3]+12),bl*.45,'square',.035);tone(t+bl/2,mf(ch[(b+1)%3]+12),bl*.45,'square',.03)}
+function hitSound(){if(ac&&master.gain.value)noise(ac.currentTime,.03,.5,3000)}
+function sched(now){if(!ac||!master.gain.value)return;while(st.ab*st.bl<now+200){const tt=st.ab*st.bl;if(tt>now-30)beat(st.ab,ac.currentTime+Math.max(0,(tt-now)/1000),st.bl/1000);st.ab++}}
+// ---------- menu ----------
+function help(){const m=$('mode').value;$('aimopt').hidden=m!='aim';$('manopt').hidden=m=='aim';$('tkopt').hidden=m!='taiko';$('msnapw').hidden=m=='taiko';
+ $('help').textContent=m=='aim'?'hit circles on the beat (click, or hover + z/x)\nsliders: hold and follow the ball, arrows = bounce back\nspinners: hold and spin around the center\nesc ends the round':m=='mania'?'press d f j k as notes reach the line, on the beat\nesc ends the round':'filled = don: f or j   ring = kat: d or k\nhit when the note reaches the left circle\nesc ends the round'}
 $('mode').onchange=help;$('go').onclick=start;
 function show(t){$('res').textContent=t;menu.hidden=false;help()}
-function start(){const m=$('mode').value,dur=+$('dur').value*1000,t=performance.now();menu.hidden=true;
- st={m,t0:t,dur,fx:[]};
- if(m=='aim'){Object.assign(st,{r:36*$('sz').value,life:+$('life').value,hits:0,miss:0,clicks:0,combo:0,maxc:0,rt:[],err:[],mx:W/2,my:H/2,cur:null});spawn(t)}
- else Object.assign(st,{nps:+$('nps').value,spd:+$('spd').value,notes:[],next:t+1500,j:[0,0,0,0],combo:0,maxc:0,errs:[],held:[0,0,0,0],lastLane:-1})}
-// ---------- aim ----------
-function spawn(t){const r=st.r,p=st.cur;let nx,ny,n=0;do{nx=r+Math.random()*(W-2*r);ny=r+40+Math.random()*(H-2*r-40)}while(p&&Math.hypot(nx-p.x,ny-p.y)<r*3&&++n<50);st.cur={x:nx,y:ny,t}}
-function aimClick(){const t=performance.now(),p=st.cur,d=Math.hypot(st.mx-p.x,st.my-p.y);st.clicks++;
- if(d<=st.r){st.hits++;st.combo++;st.maxc=Math.max(st.maxc,st.combo);st.rt.push(t-p.t);st.err.push(d/st.r);st.fx.push({x:p.x,y:p.y,t,h:1});spawn(t)}
- else{st.combo=0;st.miss++;st.fx.push({x:st.mx,y:st.my,t,h:0})}}
-function aimStats(){const acc=st.clicks?st.hits/st.clicks*100:0;return{acc,rt:avg(st.rt),score:Math.round(st.hits*acc/100*1000/Math.max(avg(st.rt),150))}}
-function aimDraw(t){const p=st.cur,age=t-p.t;
- if(age>st.life){st.miss++;st.combo=0;st.fx.push({x:p.x,y:p.y,t,h:0});spawn(t);return}
- const k=1-age/st.life;x.strokeStyle='#000';x.lineWidth=2;x.beginPath();x.arc(p.x,p.y,st.r*(1+2*k),0,7);x.stroke();
- x.lineWidth=4;x.fillStyle='#fff';x.beginPath();x.arc(p.x,p.y,st.r,0,7);x.fill();x.stroke();
- x.fillStyle='#000';x.beginPath();x.arc(p.x,p.y,2,0,7);x.fill();
- st.fx=st.fx.filter(f=>t-f.t<300);
- for(const f of st.fx){x.globalAlpha=1-(t-f.t)/300;x.lineWidth=2;x.beginPath();
-  if(f.h)x.arc(f.x,f.y,st.r*(1.5-x.globalAlpha*.5),0,7);else{x.moveTo(f.x-8,f.y-8);x.lineTo(f.x+8,f.y+8);x.moveTo(f.x+8,f.y-8);x.lineTo(f.x-8,f.y+8)}x.stroke()}
- x.globalAlpha=1;const s=aimStats();
- return `hits ${st.hits}  miss ${st.miss}  acc ${s.acc.toFixed(1)}%  avg ${s.rt.toFixed(0)}ms  combo ${st.combo}`}
-function aimEnd(el){const s=aimStats(),k='bestAim',b=ls.get(k),nb=s.score>b;if(nb)ls.set(k,s.score);
- return `AIM RESULTS${nb?'  (new best!)':''}\n\nscore      ${s.score}   best ${Math.max(b,s.score)}\nhits       ${st.hits}\nmisses     ${st.miss}\naccuracy   ${s.acc.toFixed(1)}%\navg time   ${s.rt.toFixed(0)} ms (±${sd(st.rt).toFixed(0)})\noff-center ${(avg(st.err)*100).toFixed(0)}% of radius\ntargets/s  ${(st.hits/Math.max(el/1000,.001)).toFixed(2)}\nmax combo  ${st.maxc}\n`}
+function start(){audio();const m=$('mode').value,bl=60000/+$('bpm').value;menu.hidden=true;
+ st={m,bl,bpm:+$('bpm').value,start:performance.now()+4*bl,dur:+$('dur').value*1000,ab:-4,pops:[],combo:0,maxc:0,errs:[]};
+ if(m=='aim')Object.assign(st,{r:36*$('sz').value,pre:+$('pre').value,pat:$('pat').value,objs:[],nextT:0,lx:W/2,ly:H/2,j:[0,0,0,0],score:0,off:[],track:[],spins:[],mis:0,down:0,mx:W/2,my:H/2});
+ else if(m=='taiko')Object.assign(st,{tpat:$('tpat').value,spd:+$('spd').value*.8,notes:[],next:0,j:[0,0,0],held:[0,0,0,0],last:null,typ:[[0,0],[0,0]]})
+ else Object.assign(st,{snap:+$('msnap').value,spd:+$('spd').value,notes:[],next:0,j:[0,0,0,0,0],held:[0,0,0,0],lastLane:-1,last:null})}
+// ---------- aim (osu-style) ----------
+const AW=[50,100,150];
+const clx=v=>Math.min(W-st.r-10,Math.max(st.r+10,v)),cly=v=>Math.min(H-st.r-10,Math.max(st.r+50,v));
+function near(a,b,from){const ang=(from??Math.random()*PI2),d=st.r*(a+Math.random()*(b-a));return[clx(st.lx+Math.cos(ang)*d),cly(st.ly+Math.sin(ang)*d)]}
+function C(T,p){st.objs.push({k:'c',T,x:p[0],y:p[1]});st.lx=p[0];st.ly=p[1]}
+function S(T,p,ang,L,span,reps){const x1=clx(p[0]+Math.cos(ang)*L),y1=cly(p[1]+Math.sin(ang)*L),E=T+span*(reps+1);
+ st.objs.push({k:'l',T,E,x:p[0],y:p[1],x1,y1,span,reps,tr:0,tot:0});const ev=reps%2==0;st.lx=ev?x1:p[0];st.ly=ev?y1:p[1];return E}
+function chunk(T){const b=st.bl,h=b/2,r=st.r,R=Math.random,pats=['jump','stream','double','sc','stack','tri','back','slider'];
+ let P=st.pat=='mix'?pats[R()*pats.length|0]:st.pat;
+ if(st.pat=='mix'&&R()<.08&&T>b*4&&(!st.dur||T+b*5<st.dur)){const E=T+b*4;st.objs.push({k:'s',T,E,x:W/2,y:H/2,rot:0,pa:null});st.lx=W/2;st.ly=H/2;return E+b}
+ if(P=='jump'){let a=R()*PI2;for(let i=0;i<4+(R()*5|0);i++){C(T,near(5,7,a));a+=Math.PI*(.6+R()*.8);T+=b}return T}
+ if(P=='stream'){let a=R()*PI2;for(let i=0;i<8+(R()*9|0);i++){C(T,near(.9,1.3,a));a+=(R()-.5)*.7;if(st.lx<r*3||st.lx>W-r*3||st.ly<r*3+50||st.ly>H-r*3)a+=Math.PI;T+=h}return T+h}
+ if(P=='double'){for(let i=0;i<3+(R()*3|0);i++){C(T,near(4,6));const a=R()*PI2;C(T+h,near(1.4,1.8,a));T+=b*1.5}return T+h}
+ if(P=='sc'){for(let i=0;i<2+(R()*2|0);i++){if(R()<.5){C(T,near(3,5));const a=R()*PI2;const p=near(1.5,2,a);T=S(T+h,p,a+(R()-.5),r*(3+R()*2),b,0)+h;C(T,near(1.5,2.2))}
+  else{const p=near(3,5);T=S(T,p,R()*PI2,r*(3+R()*2),b,R()<.5?1:0)+h;st.lx=p[0];st.ly=p[1];C(T,near(1.5,2))}T+=b}return T}
+ if(P=='stack'){for(let i=0;i<2+(R()*3|0);i++){const p=near(4,6);for(let k=0;k<3;k++)C(T+k*h,p);T+=b*2}return T}
+ if(P=='tri'){for(let i=0;i<3;i++){const p=near(4,6),a=R()*PI2,s=r*2.2;for(let k=0;k<3;k++)C(T+k*h,[clx(p[0]+Math.cos(a+k*2.094)*s),cly(p[1]+Math.sin(a+k*2.094)*s)]);T+=b*2}return T}
+ if(P=='back'){const p0=near(3,4),p1=near(4,6);for(let i=0;i<6;i++){C(T,i%2?p1:p0);T+=h*(st.bpm>170?2:1)}return T+h}
+ {const p=near(3,5);return S(T,p,R()*PI2,r*(3+R()*3),R()<.5?h:b,R()<.45?1+(R()*2|0):0)+b}}
+function gen(now){while(st.nextT<now+st.pre+200&&(!st.dur||st.nextT<st.dur-300))st.nextT=chunk(st.nextT)}
+function award(v,x,y){st.j[[300,100,50,0].indexOf(v)]++;if(v){st.combo++;st.maxc=Math.max(st.maxc,st.combo);st.score+=Math.round(v*(1+st.combo/25));hitSound()}else st.combo=0;st.pops.push({x,y,v,t:performance.now()})}
+const grade=e=>{const a=Math.abs(e);return a<=AW[0]?300:a<=AW[1]?100:a<=AW[2]?50:0};
+function press(now){st.down++;const o=st.objs.find(o=>!o.hd&&o.k!='s');if(!o)return;
+ const d=hyp(st.mx-o.x,st.my-o.y),e=now-o.T;if(d>st.r||e<-400){if(d>st.r)st.mis++;return}
+ o.hd=1;const v=grade(e);st.errs.push(e);st.off.push(d/st.r);
+ if(o.k=='c'){o.done=1;award(v,o.x,o.y)}else{o.hv=v;if(v)hitSound()}}
+function ball(o,now){let p=Math.max(0,Math.min(o.reps+1,(now-o.T)/o.span));let s=Math.floor(p),f=p-s;if(s>o.reps){s=o.reps;f=1}if(s%2)f=1-f;return[o.x+(o.x1-o.x)*f,o.y+(o.y1-o.y)*f,s]}
+function update(now){for(const o of st.objs){
+ if(o.k=='c'&&!o.hd&&now>o.T+AW[2]){o.hd=o.done=1;award(0,o.x,o.y)}
+ if(o.k=='l'){if(!o.hd&&now>o.T+AW[2]){o.hd=1;o.hv=0;st.combo=0}
+  if(now>=o.T&&now<o.E){const[bx,by]=ball(o,now);o.tot++;if(st.down&&hyp(st.mx-bx,st.my-by)<=st.r*2.4)o.tr++}
+  if(now>=o.E&&!o.done){o.done=1;const q=o.tr/Math.max(o.tot,1),h=o.hv||0;st.track.push(q);const[bx,by]=ball(o,o.E);
+   award(q>=.9?(h||100):q>=.5?(h?Math.min(h,100):50):(h?50:0),bx,by)}}
+ if(o.k=='s'){if(now>=o.T&&now<o.E&&st.down){const a=Math.atan2(st.my-o.y,st.mx-o.x);if(o.pa!=null){let d=a-o.pa;d-=PI2*Math.round(d/PI2);o.rot+=d}o.pa=a}else o.pa=null;
+  if(now>=o.E&&!o.done){o.done=o.hd=1;const n=Math.abs(o.rot)/PI2,need=(o.E-o.T)/1000*1.5,q=n/need;st.spins.push(n/((o.E-o.T)/60000));award(q>=1?300:q>=.6?100:q>=.3?50:0,o.x,o.y)}}}
+ st.objs=st.objs.filter(o=>!o.done)}
+function circ(x,y,r,al){cx.globalAlpha=al;cx.lineWidth=4;cx.fillStyle='#fff';cx.strokeStyle='#000';cx.beginPath();cx.arc(x,y,r,0,PI2);cx.fill();cx.stroke();cx.fillStyle='#000';cx.beginPath();cx.arc(x,y,2,0,PI2);cx.fill()}
+function ring(x,y,r,k,al){if(k<=0)return;cx.globalAlpha=al;cx.lineWidth=2;cx.beginPath();cx.arc(x,y,r*(1+3*k),0,PI2);cx.stroke()}
+function arrow(x,y,tx,ty,r){const a=Math.atan2(ty-y,tx-x);cx.save();cx.translate(x,y);cx.rotate(a);cx.fillStyle='#000';cx.beginPath();cx.moveTo(r*.5,0);cx.lineTo(-r*.3,-r*.4);cx.lineTo(-r*.3,r*.4);cx.fill();cx.restore()}
+function aimDraw(now,t){gen(now);update(now);const r=st.r;
+ for(let i=st.objs.length-1;i>=0;i--){const o=st.objs[i];if(now<o.T-st.pre)continue;
+  const al=Math.min(1,(now-o.T+st.pre)/(st.pre*.4)),k=(o.T-now)/st.pre;
+  if(o.k=='c'){circ(o.x,o.y,r,al);ring(o.x,o.y,r,k,al)}
+  else if(o.k=='l'){cx.globalAlpha=al;cx.lineCap='round';cx.strokeStyle='#000';cx.lineWidth=2*r+4;cx.beginPath();cx.moveTo(o.x,o.y);cx.lineTo(o.x1,o.y1);cx.stroke();
+   cx.strokeStyle='#fff';cx.lineWidth=2*r-4;cx.stroke();cx.strokeStyle='#000';cx.lineWidth=2;
+   for(const[px,py]of[[o.x,o.y],[o.x1,o.y1]]){cx.beginPath();cx.arc(px,py,r,0,PI2);cx.stroke()}
+   const[bx,by,s]=ball(o,now),left=o.reps-s;
+   if(left>0){if(s%2)arrow(o.x,o.y,o.x1,o.y1,r);else arrow(o.x1,o.y1,o.x,o.y,r)}
+   if(!o.hd){circ(o.x,o.y,r,al);ring(o.x,o.y,r,k,al)}
+   if(now>=o.T){cx.globalAlpha=1;cx.fillStyle='#000';cx.beginPath();cx.arc(bx,by,r*.55,0,PI2);cx.fill();
+    if(st.down&&hyp(st.mx-bx,st.my-by)<=r*2.4){cx.lineWidth=2;cx.beginPath();cx.arc(bx,by,r*2.4,0,PI2);cx.stroke()}}}
+  else{const S=Math.min(W,H)*.38;cx.globalAlpha=al;cx.lineWidth=3;cx.strokeStyle='#000';cx.beginPath();cx.arc(o.x,o.y,S,0,PI2);cx.stroke();
+   if(now>=o.T){cx.lineWidth=2;cx.beginPath();cx.arc(o.x,o.y,Math.max(1,S*(1-(now-o.T)/(o.E-o.T))),0,PI2);cx.stroke()}
+   cx.fillStyle='#000';cx.textAlign='center';cx.font='bold 20px '+F;cx.fillText(now<o.T?'SPIN':(Math.abs(o.rot)/PI2).toFixed(1)+' / '+((o.E-o.T)/1000*1.5).toFixed(0),o.x,o.y+7)}}
+ cx.globalAlpha=1;const a=aimAcc();
+ return `score ${st.score}  acc ${a.toFixed(2)}%  combo ${st.combo}x  300:${st.j[0]} 100:${st.j[1]} 50:${st.j[2]} miss:${st.j[3]}`}
+function aimAcc(){const j=st.j,n=j[0]+j[1]+j[2]+j[3];return n?(300*j[0]+100*j[1]+50*j[2])/(3*n):100}
+function aimEnd(){const a=aimAcc(),k='bestAim'+st.bpm+st.pat,b=ls.get(k),nb=st.score>b;if(nb)ls.set(k,st.score);const m=avg(st.errs);
+ return `AIM RESULTS @ ${st.bpm} bpm, ${st.pat}${nb?'  (new best!)':''}\n\nscore       ${st.score}   best ${Math.max(b,st.score)}\naccuracy    ${a.toFixed(2)}%\n300 ${st.j[0]}  100 ${st.j[1]}  50 ${st.j[2]}  miss ${st.j[3]}\nmax combo   ${st.maxc}x\nunstable    ${(sd(st.errs)*10).toFixed(0)} UR\nmean error  ${m.toFixed(1)} ms (${m<0?'early':'late'})\noff-center  ${(avg(st.off)*100).toFixed(0)}% of radius\nslider hold ${st.track.length?(avg(st.track)*100).toFixed(0)+'%':'-'}\nspinner     ${st.spins.length?avg(st.spins).toFixed(0)+' rpm':'-'}\nmisclicks   ${st.mis}\n`}
 // ---------- mania ----------
-const KEYS='dfjk',WIN=[[40,300],[80,200],[110,100],[140,50]],MISS=160,LW=70,JN=['300','200','100','50','miss'];
-function lay(){const lx=W/2-LW*2,hy=H-110;return{lx,hy,px:st.spd}} // px per ms
-function judge(i,err){st.j[i]++;if(i<4){st.combo++;st.maxc=Math.max(st.maxc,st.combo);st.errs.push(err)}else st.combo=0;st.last={i,err,t:performance.now()}}
-function maniaPress(l){const t=performance.now();st.held[l]=t;
- let best=null;for(const n of st.notes)if(n.l==l&&!n.done&&Math.abs(t-n.t)<=MISS&&(!best||n.t<best.t))best=n;
- if(!best)return;best.done=1;const e=t-best.t,a=Math.abs(e);judge(a>WIN[3][0]?4:WIN.findIndex(w=>a<=w[0]),e)}
-function maniaAcc(){const j=st.j,tot=j.reduce((a,b)=>a+b,0);return tot?(j[0]*300+j[1]*200+j[2]*100+j[3]*50)/(tot*300)*100:100}
-function maniaDraw(t){const{lx,hy,px}=lay();
- if(!st.dur||t<st.t0+st.dur-1500)while(st.next<t+H/px){let l;do l=Math.random()*4|0;while(l==st.lastLane&&Math.random()<.6);st.lastLane=l;
-  st.notes.push({l,t:st.next});st.next+=1000/st.nps*(0.75+Math.random()*.5)}
- for(const n of st.notes)if(!n.done&&t-n.t>MISS){n.done=1;judge(4,MISS)}
+const KEYS='dfjk',MW=[[40,300],[80,200],[110,100],[140,50]],MISS=160,LW=70,JN=['300','200','100','50','miss'];
+function mjudge(i,err){st.j[i]++;if(i<4){st.combo++;st.maxc=Math.max(st.maxc,st.combo);st.errs.push(err);hitSound()}else st.combo=0;st.last={i,err,t:performance.now()}}
+function mpress(l,now){let best=null;for(const n of st.notes)if(n.l==l&&!n.done&&Math.abs(now-n.t)<=MISS&&(!best||n.t<best.t))best=n;
+ if(!best)return;best.done=1;const e=now-best.t,a=Math.abs(e);mjudge(a>MW[3][0]?4:MW.findIndex(w=>a<=w[0]),e)}
+function mAcc(){const j=st.j,n=j.reduce((a,b)=>a+b,0);return n?(j[0]*300+j[1]*200+j[2]*100+j[3]*50)/(n*3):100}
+function maniaDraw(now){const lx=W/2-LW*2,hy=H-110,px=st.spd,u=st.bl/st.snap;
+ while(st.next<now+H/px&&(!st.dur||st.next<st.dur-300)){const T=st.next;st.next+=u;if(Math.random()<.2)continue;
+  let l;do l=Math.random()*4|0;while(l==st.lastLane&&Math.random()<.7);st.lastLane=l;st.notes.push({l,t:T});
+  if(T%st.bl<1&&Math.random()<.2)st.notes.push({l:(l+1+(Math.random()*3|0))%4,t:T})}
+ for(const n of st.notes)if(!n.done&&now-n.t>MISS){n.done=1;mjudge(4,MISS)}
  st.notes=st.notes.filter(n=>!n.done);
- x.strokeStyle='#000';x.lineWidth=2;
- for(let i=0;i<=4;i++){x.beginPath();x.moveTo(lx+i*LW,0);x.lineTo(lx+i*LW,H);x.stroke()}
- for(let i=0;i<4;i++){const on=st.held[i]<0;x.fillStyle=on?'#000':'#fff';x.fillRect(lx+i*LW+6,hy+6,LW-12,30);x.strokeRect(lx+i*LW+6,hy+6,LW-12,30);
-  x.fillStyle=on?'#fff':'#000';x.textAlign='center';x.fillText(KEYS[i].toUpperCase(),lx+i*LW+LW/2,hy+25)}
- x.lineWidth=4;x.beginPath();x.moveTo(lx,hy);x.lineTo(lx+4*LW,hy);x.stroke();
- x.fillStyle='#000';for(const n of st.notes){const y=hy-(n.t-t)*px;if(y>-20)x.fillRect(lx+n.l*LW+4,y-10,LW-8,14)}
- if(st.last&&t-st.last.t<400){x.font='bold 22px ui-monospace,monospace';x.globalAlpha=1-(t-st.last.t)/400;
-  x.fillText(JN[st.last.i]+(st.last.i<4&&st.last.i>0?(st.last.err<0?' early':' late'):''),W/2,hy-160);x.globalAlpha=1;x.font='14px ui-monospace,monospace'}
- // hit error bar
- const bx=W/2,by=hy+60;x.fillRect(bx-MISS,by,MISS*2,1);x.fillRect(bx,by-8,2,16);
- for(const e of st.errs.slice(-30))x.fillRect(bx+e-1,by-6,2,12);
- x.textAlign='left';
- return `acc ${maniaAcc().toFixed(2)}%  combo ${st.combo}  ${JN.map((n,i)=>n+':'+st.j[i]).join(' ')}  UR ${(sd(st.errs)*10).toFixed(0)}`}
-function maniaEnd(el){const a=maniaAcc(),k='bestMania'+st.nps,b=ls.get(k),hits=st.j.slice(0,4).reduce((p,q)=>p+q,0),nb=hits>20&&a*100>b;if(nb)ls.set(k,Math.round(a*100));
- const m=avg(st.errs);
- return `MANIA RESULTS (${st.nps} notes/s)${nb?'  (new best!)':''}\n\naccuracy   ${a.toFixed(2)}%   best ${(Math.max(b,nb?a*100:0)/100).toFixed(2)}%\n300 ${st.j[0]}  200 ${st.j[1]}  100 ${st.j[2]}  50 ${st.j[3]}  miss ${st.j[4]}\nmax combo  ${st.maxc}\nunstable   ${(sd(st.errs)*10).toFixed(0)} UR\nmean error ${m.toFixed(1)} ms (${m<0?'early':'late'})\nduration   ${(el/1000).toFixed(0)}s\n`}
+ cx.strokeStyle='#000';cx.lineWidth=2;
+ for(let i=0;i<=4;i++){cx.beginPath();cx.moveTo(lx+i*LW,0);cx.lineTo(lx+i*LW,H);cx.stroke()}
+ for(let b=Math.ceil(now/st.bl)*st.bl;b<now+H/px;b+=st.bl){const y=hy-(b-now)*px;cx.globalAlpha=.15;cx.fillStyle='#000';cx.fillRect(lx,y,LW*4,1);cx.globalAlpha=1}
+ cx.textAlign='center';
+ for(let i=0;i<4;i++){const on=st.held[i];cx.fillStyle=on?'#000':'#fff';cx.fillRect(lx+i*LW+6,hy+6,LW-12,30);cx.strokeRect(lx+i*LW+6,hy+6,LW-12,30);
+  cx.fillStyle=on?'#fff':'#000';cx.fillText(KEYS[i].toUpperCase(),lx+i*LW+LW/2,hy+25)}
+ cx.lineWidth=4;cx.beginPath();cx.moveTo(lx,hy);cx.lineTo(lx+4*LW,hy);cx.stroke();
+ cx.fillStyle='#000';for(const n of st.notes){const y=hy-(n.t-now)*px;if(y>-20)cx.fillRect(lx+n.l*LW+4,y-10,LW-8,14)}
+ const L=st.last;if(L&&performance.now()-L.t<400){cx.font='bold 22px '+F;cx.globalAlpha=1-(performance.now()-L.t)/400;
+  cx.fillText(JN[L.i]+(L.i>0&&L.i<4?(L.err<0?' early':' late'):''),W/2,hy-160);cx.globalAlpha=1;cx.font='14px '+F}
+ const bx=W/2,by=hy+60;cx.fillRect(bx-MISS,by,MISS*2,1);cx.fillRect(bx-1,by-8,2,16);
+ for(const e of st.errs.slice(-30))cx.fillRect(bx+e-1,by-6,2,12);
+ return `acc ${mAcc().toFixed(2)}%  combo ${st.combo}  ${JN.map((n,i)=>n+':'+st.j[i]).join(' ')}  UR ${(sd(st.errs)*10).toFixed(0)}`}
+function maniaEnd(el){const a=mAcc(),k=`bestMania${st.bpm}_${st.snap}`,b=ls.get(k),hits=st.j[0]+st.j[1]+st.j[2]+st.j[3],nb=hits>20&&a*100>b;if(nb)ls.set(k,Math.round(a*100));const m=avg(st.errs);
+ return `MANIA RESULTS @ ${st.bpm} bpm 1/${st.snap}${nb?'  (new best!)':''}\n\naccuracy   ${a.toFixed(2)}%   best ${(Math.max(b,nb?a*100:0)/100).toFixed(2)}%\n300 ${st.j[0]}  200 ${st.j[1]}  100 ${st.j[2]}  50 ${st.j[3]}  miss ${st.j[4]}\nmax combo  ${st.maxc}\nunstable   ${(sd(st.errs)*10).toFixed(0)} UR\nmean error ${m.toFixed(1)} ms (${m<0?'early':'late'})\nduration   ${(Math.max(0,el)/1000).toFixed(0)}s\n`}
+// ---------- taiko ----------
+const TW=[35,80],TMISS=110,TP={alt:['dkdk','kdkd'],tri:['ddk','kkd','dkk','kdd'],burst:['ddddd','kkkkk','dkdkd','ddkdd','kdddk'],fc:['kddkdd','dkkdkk','kkdkkd','ddkkdd'],stream:['dkdkddkdkk','ddkkddkd','kdddkkdk'],mono:['dddd','kkkk','ddddddd','kkkkkk']};
+function tgen(now){const q=st.bl/4;while(st.next<now+W/st.spd&&(!st.dur||st.next<st.dur-300)){
+ const P=st.tpat=='mix'?Object.keys(TP)[Math.random()*6|0]:st.tpat,list=TP[P],str=list[Math.random()*list.length|0],
+ step=(P=='burst'||P=='stream')?q:q*2;
+ for(const ch of str){st.notes.push({t:st.next,k:ch=='k'?1:0});st.next+=step}
+ st.next=Math.ceil((st.next+st.bl/2)/(st.bl/2))*(st.bl/2)}}
+function tjudge(n,i,e){st.j[i]++;if(n)st.typ[n.k][i<2?0:1]++;if(i<2){st.combo++;st.maxc=Math.max(st.maxc,st.combo);st.errs.push(e);hitSound()}else st.combo=0;st.last={i,t:performance.now()}}
+function tpress(k,now){let n=null;for(const m of st.notes)if(!m.done&&Math.abs(now-m.t)<=TMISS&&(!n||m.t<n.t))n=m;if(!n)return;
+ n.done=1;const e=now-n.t,a=Math.abs(e);tjudge(n,n.k!=k?2:a<=TW[0]?0:a<=TW[1]?1:2,e)}
+function tAcc(){const j=st.j,n=j[0]+j[1]+j[2];return n?(j[0]+j[1]*.5)/n*100:100}
+function taikoDraw(now){tgen(now);const hx=Math.min(160,W*.2),y=H/2,R0=26;
+ for(const n of st.notes)if(!n.done&&now-n.t>TMISS){n.done=1;tjudge(n,2,TMISS)}st.notes=st.notes.filter(n=>!n.done);
+ cx.strokeStyle='#000';cx.lineWidth=2;cx.strokeRect(-2,y-50,W+4,100);
+ for(let b=Math.ceil(now/st.bl)*st.bl;b<now+W/st.spd;b+=st.bl){const x=hx+(b-now)*st.spd;cx.globalAlpha=.15;cx.fillStyle='#000';cx.fillRect(x,y-50,1,100);cx.globalAlpha=1}
+ cx.lineWidth=3;cx.beginPath();cx.arc(hx,y,R0+6,0,PI2);cx.stroke();
+ const dn=st.held[1]||st.held[2],kt=st.held[0]||st.held[3];if(dn){cx.globalAlpha=.25;cx.fillStyle='#000';cx.beginPath();cx.arc(hx,y,R0+6,0,PI2);cx.fill();cx.globalAlpha=1}
+ if(kt){cx.lineWidth=6;cx.beginPath();cx.arc(hx,y,R0+14,0,PI2);cx.stroke()}
+ for(let i=st.notes.length-1;i>=0;i--){const n=st.notes[i],x=hx+(n.t-now)*st.spd;if(x>W+40)continue;cx.beginPath();cx.arc(x,y,R0,0,PI2);
+  if(n.k){cx.fillStyle='#fff';cx.fill();cx.lineWidth=7;cx.stroke()}else{cx.fillStyle='#000';cx.fill()}}
+ const L=st.last;cx.textAlign='center';if(L&&performance.now()-L.t<400){cx.font='bold 22px '+F;cx.fillStyle='#000';cx.globalAlpha=1-(performance.now()-L.t)/400;cx.fillText(['great','ok','miss'][L.i],hx,y-70);cx.globalAlpha=1;cx.font='14px '+F}
+ const bx=W/2,by=y+90;cx.fillStyle='#000';cx.fillRect(bx-TMISS,by,TMISS*2,1);cx.fillRect(bx-1,by-8,2,16);for(const e of st.errs.slice(-30))cx.fillRect(bx+e-1,by-6,2,12);
+ return `acc ${tAcc().toFixed(2)}%  combo ${st.combo}  great:${st.j[0]} ok:${st.j[1]} miss:${st.j[2]}  UR ${(sd(st.errs)*10).toFixed(0)}`}
+function taikoEnd(el){const a=tAcc(),k=`bestTaiko${st.bpm}${st.tpat}`,b=ls.get(k),nb=st.j[0]+st.j[1]>20&&a*100>b;if(nb)ls.set(k,Math.round(a*100));const m=avg(st.errs),pc=t=>t[0]+t[1]?(t[0]/(t[0]+t[1])*100).toFixed(1)+'%':'-';
+ return `TAIKO RESULTS @ ${st.bpm} bpm, ${st.tpat}${nb?'  (new best!)':''}\n\naccuracy   ${a.toFixed(2)}%   best ${(Math.max(b,nb?a*100:0)/100).toFixed(2)}%\ngreat ${st.j[0]}  ok ${st.j[1]}  miss ${st.j[2]}\ndon hit    ${pc(st.typ[0])}   kat hit ${pc(st.typ[1])}\nmax combo  ${st.maxc}\nunstable   ${(sd(st.errs)*10).toFixed(0)} UR\nmean error ${m.toFixed(1)} ms (${m<0?'early':'late'})\nduration   ${(Math.max(0,el)/1000).toFixed(0)}s\n`}
 // ---------- shared ----------
-function end(){const el=performance.now()-st.t0,r=st.m=='aim'?aimEnd(el):maniaEnd(el);st=null;x.clearRect(0,0,W,H);hud.textContent='';show(r)}
+const songNow=()=>performance.now()-st.start;
+function end(){const el=songNow(),r=st.m=='aim'?aimEnd():st.m=='taiko'?taikoEnd(el):maniaEnd(el);st=null;cx.clearRect(0,0,W,H);hud.textContent='';show(r)}
 onmousemove=e=>{if(st&&st.m=='aim'){st.mx=e.clientX;st.my=e.clientY}};
-c.onmousedown=e=>{e.preventDefault();if(st&&st.m=='aim')aimClick()};
+c.onmousedown=e=>{e.preventDefault();if(st&&st.m=='aim')press(songNow())};
+onmouseup=()=>{if(st&&st.m=='aim')st.down=Math.max(0,st.down-1)};
 onkeydown=e=>{if(e.repeat)return;const k=e.key.toLowerCase();
  if(!st){if(k==' '&&document.activeElement.tagName!='BUTTON'){e.preventDefault();start()}return}
  if(k=='escape')return end();
- if(st.m=='aim'&&(k=='z'||k=='x'))aimClick();
- if(st.m=='mania'){const l=KEYS.indexOf(k);if(l>=0){maniaPress(l);st.held[l]=-1}}};
-onkeyup=e=>{if(st&&st.m=='mania'){const l=KEYS.indexOf(e.key.toLowerCase());if(l>=0)st.held[l]=0}};
+ if(st.m=='aim'&&(k=='z'||k=='x'))press(songNow());
+ if(st.m=='mania'){const l=KEYS.indexOf(k);if(l>=0){st.held[l]=1;mpress(l,songNow())}}
+ if(st.m=='taiko'){const l=KEYS.indexOf(k);if(l>=0){st.held[l]=1;tpress(l==0||l==3?1:0,songNow())}}};
+onkeyup=e=>{if(!st)return;const k=e.key.toLowerCase();
+ if(st.m=='aim'&&(k=='z'||k=='x'))st.down=Math.max(0,st.down-1);
+ if(st.m!='aim'){const l=KEYS.indexOf(k);if(l>=0)st.held[l]=0}};
 oncontextmenu=e=>e.preventDefault();
-function loop(t){requestAnimationFrame(loop);if(!st)return;x.clearRect(0,0,W,H);x.font='14px ui-monospace,monospace';
- const el=t-st.t0;if(st.dur&&el>=st.dur)return end();
- const h=st.m=='aim'?aimDraw(t):maniaDraw(t);if(!st)return;
- hud.textContent=(st.dur?`time ${((st.dur-el)/1000).toFixed(1)}`:`time ${(el/1000).toFixed(0)}s (esc to stop)`)+'  '+(h||'')}
+function loop(){requestAnimationFrame(loop);if(!st)return;cx.clearRect(0,0,W,H);cx.font='14px '+F;
+ const now=songNow();if(st.dur&&now>=st.dur+(st.m=='aim'?200:MISS))return end();sched(now);
+ const h=st.m=='aim'?aimDraw(now):st.m=='taiko'?taikoDraw(now):maniaDraw(now);
+ cx.globalAlpha=1;cx.textAlign='center';cx.fillStyle='#000';
+ if(now<0){cx.font='bold 40px '+F;cx.fillText(Math.ceil(-now/st.bl),W/2,80);cx.font='14px '+F}
+ if(st.pops)for(const p of st.pops=st.pops.filter(p=>performance.now()-p.t<600)){const a=(performance.now()-p.t)/600;cx.globalAlpha=1-a;cx.font='bold 18px '+F;cx.fillText(p.v?p.v:'×',p.x,p.y-(st.r||0)-8-a*14)}
+ cx.globalAlpha=1;cx.font='14px '+F;
+ hud.textContent=(st.dur?`time ${Math.max(0,(st.dur-Math.max(now,0))/1000).toFixed(1)}`:`time ${(Math.max(now,0)/1000).toFixed(0)}s (esc to stop)`)+`  ${st.bpm}bpm  `+h}
 requestAnimationFrame(loop);
-show(`AIMTRAIN\n\nbest aim score ${ls.get('bestAim')}\n`);
+show(`AIMTRAIN\n\nosu-style aim, mania and taiko trainer, synced to a beat\n`);
 </script>
