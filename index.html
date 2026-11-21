@@ -42,10 +42,16 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 <div id="cfg"></div>
 <main class="mid"><div id="big"></div><pre id="res"></pre><div id="panel" hidden>
 <label><span data-t="language">language</span><select id="lang"><option value="en">English</option><option value="zh">中文</option><option value="ja">日本語</option><option value="ru">Русский</option></select></label>
-<label><span data-t="custom bpm">custom bpm</span><input id="cbpm" type="number" min="40" max="400" step="1" placeholder="e.g. 165"></label>
+<label><span data-t="custom bpm">custom bpm</span><input id="cbpm" type="number" min="40" max="400" step="1" placeholder="165"></label>
 <label><span data-t="audio offset (ms)">audio offset (ms)</span><input id="aoff" type="number" min="-300" max="300" step="1" value="0"></label>
 <label><span data-t="hit windows (ms)">hit windows (ms)</span><span class="wins">300 <input id="w3" type="number" min="5" max="200" value="50"> 100 <input id="w1" type="number" min="10" max="300" value="100"> 50 <input id="w5" type="number" min="15" max="400" value="150"></span></label>
 <label><span data-t="hit sound">hit sound</span><select id="hs"><option value="1">on</option><option value="0">off</option></select></label>
+<label><span data-t="judgement words">judgement words</span><span class="wins"><input id="jl0" maxlength="10" placeholder="300"><input id="jl1" maxlength="10" placeholder="100"><input id="jl2" maxlength="10" placeholder="50"><input id="jl3" maxlength="10" placeholder="×"></span></label>
+<label><span data-t="show judgements">show judgements</span><select id="jshow"><option value="all">all</option><option value="h300">hide perfect</option><option value="none">none</option></select></label>
+<label><span data-t="circle style">circle style</span><select id="cs"><option value="outline">outline</option><option value="filled">filled</option><option value="thin">thin</option><option value="target">target</option></select></label>
+<label><span data-t="approach circle">approach circle</span><select id="ar"><option value="1">on</option><option value="0">off</option></select></label>
+<label><span data-t="numbers">numbers</span><select id="cn"><option value="1">on</option><option value="0">off</option></select></label>
+<label><span data-t="cursor">cursor</span><select id="cur"><option value="sys">system</option><option value="dot">dot</option><option value="ring">ring</option></select></label>
 <div class="prow"><button id="rst" class="opt" data-t="reset to defaults">reset to defaults</button><button id="pdone" class="opt on" data-t="done">done</button></div>
 <small data-t="settings are saved in this browser">settings are saved in this browser</small></div>
 <button id="go" class="start" data-t="start ▸">start ▸</button><pre id="help"></pre></main>
@@ -77,7 +83,7 @@ function sched(now){if(!ac||!master.gain.value)return;while(st.ab*st.bl<now+200)
 // ---------- menu ----------
 
 const L10N={
-zh:{"aim":"瞄准","mania 4k":"下落式 4K","taiko":"太鼓","orbit (adofai-style)":"轨道 (冰与火之舞风格)","catch":"接水果","time":"时间","difficulty":"难度","music":"音乐","size":"大小","approach":"缩圈","pattern":"谱面","trail":"拖尾","snap":"细分","scroll":"速度","path":"路径",
+zh:{"judgement words":"判定文字","show judgements":"显示判定","all":"全部","hide perfect":"隐藏完美","none":"不显示","circle style":"圆圈样式","outline":"描边","filled":"实心","thin":"细线","target":"靶心","approach circle":"缩圈","numbers":"数字","cursor":"光标","system":"系统","dot":"圆点","ring":"圆环","aim":"瞄准","mania 4k":"下落式 4K","taiko":"太鼓","orbit (adofai-style)":"轨道 (冰与火之舞风格)","catch":"接水果","time":"时间","difficulty":"难度","music":"音乐","size":"大小","approach":"缩圈","pattern":"谱面","trail":"拖尾","snap":"细分","scroll":"速度","path":"路径",
 "30s":"30秒","60s":"60秒","unlimited":"无限","custom":"自定义","easy":"简单","normal":"普通","hard":"困难","insane":"疯狂","expert":"专家","adaptive":"自适应","off":"关","low":"低","mid":"中","high":"高","small":"小","large":"大","on":"开","slow":"慢","fast":"快",
 "slow (3 beats)":"慢 (3拍)","normal (2 beats)":"普通 (2拍)","fast (1.5 beats)":"快 (1.5拍)","very fast (1 beat)":"很快 (1拍)","mixed":"混合","jumps":"跳跃","streams":"连打","doubles":"双押","circle + slider":"圈 + 滑条","stacks":"叠圈","triangles":"三角","back and forth":"来回",
 "alternating dkdk":"交替 dkdk","triplets ddk / kkd":"三连 ddk / kkd","1/4 bursts (5)":"1/4 五连","finger control":"手指控制","1/4 streams":"1/4 连打","mono don/kat runs":"单色连打","straight":"直线","90° turns":"90° 转弯","zigzag":"之字形","thirds (60° / 120°)":"三分 (60° / 120°)","swing (0.75 / 1.25)":"摇摆 (0.75 / 1.25)",
@@ -85,7 +91,7 @@ zh:{"aim":"瞄准","mania 4k":"下落式 4K","taiko":"太鼓","orbit (adofai-sty
 "start":"开始","restart":"重开","stop":"停止","hit":"击打","sliders, spinners":"滑条、转盘","lanes":"轨道","long notes":"长条","don":"咚","kat":"咔","any":"任意","drumroll":"连打","move":"移动","dash":"冲刺","click / z / x":"点击 / z / x","hold":"按住","any key / click":"任意键 / 点击",
 "score":"分数","acc":"准确率","combo":"连击","missed":"漏接","language":"语言","custom bpm":"自定义 BPM","audio offset (ms)":"音频偏移 (毫秒)","hit windows (ms)":"判定区间 (毫秒)","hit sound":"打击音效","reset to defaults":"恢复默认","done":"完成","settings are saved in this browser":"设置保存在此浏览器中",
 "INTRO":"跟随节拍的 osu 风格训练器：瞄准、下落式、太鼓、轨道、接水果\n每局结束都会与你的记录比较\n"},
-ja:{"aim":"エイム","mania 4k":"マニア 4K","taiko":"太鼓","orbit (adofai-style)":"オービット (ADOFAI風)","catch":"キャッチ","time":"時間","difficulty":"難易度","music":"音楽","size":"サイズ","approach":"アプローチ","pattern":"パターン","trail":"トレイル","snap":"スナップ","scroll":"スクロール","path":"パス",
+ja:{"judgement words":"判定の文字","show judgements":"判定表示","all":"すべて","hide perfect":"パーフェクトを隠す","none":"なし","circle style":"サークルの見た目","outline":"アウトライン","filled":"塗りつぶし","thin":"細線","target":"ターゲット","approach circle":"アプローチサークル","numbers":"番号","cursor":"カーソル","system":"システム","dot":"ドット","ring":"リング","aim":"エイム","mania 4k":"マニア 4K","taiko":"太鼓","orbit (adofai-style)":"オービット (ADOFAI風)","catch":"キャッチ","time":"時間","difficulty":"難易度","music":"音楽","size":"サイズ","approach":"アプローチ","pattern":"パターン","trail":"トレイル","snap":"スナップ","scroll":"スクロール","path":"パス",
 "30s":"30秒","60s":"60秒","unlimited":"無制限","custom":"カスタム","easy":"イージー","normal":"ノーマル","hard":"ハード","insane":"インセイン","expert":"エキスパート","adaptive":"適応","off":"オフ","low":"小","mid":"中","high":"大","small":"小","large":"大","on":"オン","slow":"遅い","fast":"速い",
 "slow (3 beats)":"遅い (3拍)","normal (2 beats)":"ノーマル (2拍)","fast (1.5 beats)":"速い (1.5拍)","very fast (1 beat)":"とても速い (1拍)","mixed":"ミックス","jumps":"ジャンプ","streams":"ストリーム","doubles":"ダブル","circle + slider":"サークル + スライダー","stacks":"スタック","triangles":"三角","back and forth":"往復",
 "alternating dkdk":"交互 dkdk","triplets ddk / kkd":"三連 ddk / kkd","1/4 bursts (5)":"1/4 5連","finger control":"指コントロール","1/4 streams":"1/4 連打","mono don/kat runs":"単色連打","straight":"直線","90° turns":"90° ターン","zigzag":"ジグザグ","thirds (60° / 120°)":"三分 (60° / 120°)","swing (0.75 / 1.25)":"スイング (0.75 / 1.25)",
@@ -93,7 +99,7 @@ ja:{"aim":"エイム","mania 4k":"マニア 4K","taiko":"太鼓","orbit (adofai-
 "start":"スタート","restart":"リスタート","stop":"停止","hit":"ヒット","sliders, spinners":"スライダー・スピナー","lanes":"レーン","long notes":"ロングノーツ","don":"ドン","kat":"カッ","any":"どれでも","drumroll":"連打","move":"移動","dash":"ダッシュ","click / z / x":"クリック / z / x","hold":"長押し","any key / click":"任意キー / クリック",
 "score":"スコア","acc":"精度","combo":"コンボ","missed":"ミス","language":"言語","custom bpm":"カスタム BPM","audio offset (ms)":"オーディオオフセット (ms)","hit windows (ms)":"判定幅 (ms)","hit sound":"ヒット音","reset to defaults":"初期設定に戻す","done":"完了","settings are saved in this browser":"設定はこのブラウザに保存されます",
 "INTRO":"ビートに合わせた osu 風トレーナー：エイム、マニア、太鼓、オービット、キャッチ\n毎ラウンド自己ベストと比較します\n"},
-ru:{"aim":"прицел","mania 4k":"мания 4K","taiko":"тайко","orbit (adofai-style)":"орбита (в стиле ADOFAI)","catch":"ловля","time":"время","difficulty":"сложность","music":"музыка","size":"размер","approach":"появление","pattern":"паттерн","trail":"след","snap":"деление","scroll":"скорость","path":"путь",
+ru:{"judgement words":"слова оценок","show judgements":"показывать оценки","all":"все","hide perfect":"скрыть идеальные","none":"не показывать","circle style":"стиль кругов","outline":"контур","filled":"заливка","thin":"тонкий","target":"мишень","approach circle":"круг появления","numbers":"номера","cursor":"курсор","system":"системный","dot":"точка","ring":"кольцо","aim":"прицел","mania 4k":"мания 4K","taiko":"тайко","orbit (adofai-style)":"орбита (в стиле ADOFAI)","catch":"ловля","time":"время","difficulty":"сложность","music":"музыка","size":"размер","approach":"появление","pattern":"паттерн","trail":"след","snap":"деление","scroll":"скорость","path":"путь",
 "30s":"30с","60s":"60с","unlimited":"без лимита","custom":"своё","easy":"легко","normal":"обычно","hard":"сложно","insane":"безумно","expert":"эксперт","adaptive":"адаптивно","off":"выкл","low":"тихо","mid":"средне","high":"громко","small":"мелкий","large":"крупный","on":"вкл","slow":"медленно","fast":"быстро",
 "slow (3 beats)":"медленно (3 доли)","normal (2 beats)":"обычно (2 доли)","fast (1.5 beats)":"быстро (1.5 доли)","very fast (1 beat)":"очень быстро (1 доля)","mixed":"смешанный","jumps":"прыжки","streams":"стримы","doubles":"дубли","circle + slider":"круг + слайдер","stacks":"стопки","triangles":"треугольники","back and forth":"туда-обратно",
 "alternating dkdk":"чередование dkdk","triplets ddk / kkd":"триоли ddk / kkd","1/4 bursts (5)":"1/4 очереди (5)","finger control":"контроль пальцев","1/4 streams":"1/4 стримы","mono don/kat runs":"одноцветные серии","straight":"прямо","90° turns":"повороты 90°","zigzag":"зигзаг","thirds (60° / 120°)":"трети (60° / 120°)","swing (0.75 / 1.25)":"свинг (0.75 / 1.25)",
@@ -107,22 +113,23 @@ zh:{aim:'在节拍上点击圆圈（鼠标或悬停 + z/x）\n滑条：按住并
 ja:{aim:'ビートに合わせてサークルをヒット（クリック、またはホバー + z/x）\nスライダー：押したままボールを追う、矢印 = 折り返し\nスピナー：押したまま中心の周りを回す',mania:'ノーツが判定ラインに来たら d f j k\nロングノーツ：終端がラインに来るまで押し続ける',taiko:'塗り = ドン：f か j　輪 = カッ：d か k\n長いバー = 連打：どのキーでも素早く',orbit:'回る惑星が次のタイルに来たら任意キー（またはクリック）\n角度がリズムを決める：直線 = 1拍、90° = 1/2 か 3/2',catch:'左右キーで移動、shift でダッシュ\n太い縁のフルーツはダッシュが必要、バナナはボーナス'},
 ru:{aim:'попадайте по кругам в такт (клик или наведение + z/x)\nслайдеры: держите и следуйте за шаром, стрелки = разворот\nспиннеры: держите и вращайте вокруг центра',mania:'нажимайте d f j k, когда ноты доходят до линии\nдлинные ноты: держите до конца',taiko:'закрашенные = дон: f или j   кольца = кат: d или k\nдлинные полосы = дробь: жмите быстро',orbit:'нажмите любую клавишу (или клик), когда планета дойдёт до следующей плитки\nугол задаёт ритм: прямо = 1 доля, 90° = 1/2 или 3/2',catch:'двигайтесь стрелками влево / вправо, shift — рывок\nфрукты с толстой обводкой требуют рывка, бананы — бонус'}};
 const ESC_T={en:'esc ends the round',zh:'esc 结束本局',ja:'esc でラウンド終了',ru:'esc завершает раунд'};
-let OPT={lang:'en',off:0,hs:1,w:[50,100,150]};
+const OPTD={off:0,hs:1,w:[50,100,150],jl:['','','',''],jshow:'all',cs:'outline',ar:1,cn:1,cur:'sys'};let OPT={lang:'en',...structuredClone(OPTD)};
+const jw=(i,d)=>OPT.jl[i]||d,jhide=v=>OPT.jshow=='none'||(OPT.jshow=='h300'&&v);
 const tr=t=>(L10N[OPT.lang]||{})[t]||t;
 function applyWin(){const[a,b,c]=OPT.w;AW=[a,b,c];MW=[[a*.8,300],[a*1.6,200],[b*1.1,100],[c*.93,50]];MISS=c*1.07;TW=[a*.7,b*.8];TMISS=c*.73;OW=[a*.7,b*.7,c]}
 const SAVE=['mode','dur','bpm','diff','vol','sz','pre','pat','trail','msnap','spd','tpat','opat','cpat'];
 function saveCfg(){const o={OPT,cbpm:$('cbpm').value};for(const id of SAVE)o[id]=$(id).value;try{localStorage.cfg=JSON.stringify(o)}catch(e){}}
 function addBpm(v){v=Math.round(v);if(!(v>=40&&v<=400))return;const sel=$('bpm');if(![...sel.options].some(o=>o.value==v)){const o=new Option(String(v),String(v));o.dataset.c=1;[...sel.options].filter(o=>o.dataset.c).forEach(o=>o.remove());sel.add(o)}sel.value=String(v)}
-function loadCfg(){let o;try{o=JSON.parse(localStorage.cfg||'null')}catch(e){}if(!o)return;Object.assign(OPT,o.OPT||{});if(o.cbpm)addBpm(+o.cbpm);
+function loadCfg(){let o;try{o=JSON.parse(localStorage.cfg||'null')}catch(e){}if(!o)return;Object.assign(OPT,o.OPT||{});if(!Array.isArray(OPT.jl))OPT.jl=['','','',''];if(o.cbpm)addBpm(+o.cbpm);
  for(const id of SAVE)if(o[id]!=null&&[...$(id).options].some(x=>x.value==o[id]))$(id).value=o[id]}
-function syncPanel(){$('lang').value=OPT.lang;$('aoff').value=OPT.off;$('hs').value=OPT.hs?'1':'0';['w3','w1','w5'].forEach((id,i)=>$(id).value=OPT.w[i])}
+function syncPanel(){$('lang').value=OPT.lang;$('aoff').value=OPT.off;$('hs').value=OPT.hs?'1':'0';['w3','w1','w5'].forEach((id,i)=>$(id).value=OPT.w[i]);OPT.jl.forEach((v,i)=>$('jl'+i).value=v);for(const k of ['jshow','cs','ar','cn','cur'])$(k).value=String(OPT[k])}
 function readPanel(){OPT.lang=$('lang').value;OPT.off=Math.max(-300,Math.min(300,+$('aoff').value||0));OPT.hs=$('hs').value=='1';
- const w=['w3','w1','w5'].map(id=>Math.max(5,+$(id).value||0));w[1]=Math.max(w[1],w[0]+1);w[2]=Math.max(w[2],w[1]+1);OPT.w=w;applyWin();
+ const w=['w3','w1','w5'].map(id=>Math.max(5,+$(id).value||0));w[1]=Math.max(w[1],w[0]+1);w[2]=Math.max(w[2],w[1]+1);OPT.w=w;applyWin();OPT.jl=[0,1,2,3].map(i=>$('jl'+i).value.trim().slice(0,10));OPT.jshow=$('jshow').value;OPT.cs=$('cs').value;OPT.ar=+$('ar').value;OPT.cn=+$('cn').value;OPT.cur=$('cur').value;
  if($('cbpm').value)addBpm(+$('cbpm').value);saveCfg();help()}
-for(const id of ['lang','aoff','hs','w3','w1','w5','cbpm'])$(id).addEventListener('change',readPanel);
+for(const id of ['lang','aoff','hs','w3','w1','w5','cbpm','jl0','jl1','jl2','jl3','jshow','cs','ar','cn','cur'])$(id).addEventListener('change',readPanel);
 $('setb').onclick=()=>{$('big').innerHTML='';$('res').textContent='';syncPanel();$('panel').hidden=false;$('go').hidden=true};
 $('pdone').onclick=()=>{readPanel();show(tr('INTRO'))};
-$('rst').onclick=()=>{OPT={lang:OPT.lang,off:0,hs:1,w:[50,100,150]};$('cbpm').value='';syncPanel();readPanel()};
+$('rst').onclick=()=>{OPT={lang:OPT.lang,...structuredClone(OPTD)};$('cbpm').value='';syncPanel();readPanel()};
 function help(){const m=$('mode').value;renderCfg();$('help').textContent=(HELP[OPT.lang]||HELP.en)[m]+'\n'+ESC_T[OPT.lang];return;
  $('help').textContent=m=='aim'?'hit circles on the beat (click, or hover + z/x)\nsliders: hold and follow the ball, arrows = bounce back\nspinners: hold and spin around the center\nesc ends the round':m=='catch'?'move with left / right arrows, hold shift to dash\ncatch fruits and droplets on the plate, bananas are bonus\nfruits with a thick outline need a dash\nesc ends the round':m=='orbit'?'press any key (or click) when the orbiting planet reaches the next tile\nthe turn angle sets the rhythm: straight = 1 beat, 90° = 1/2 or 3/2\nesc ends the round':m=='mania'?'press d f j k as notes reach the line, on the beat\nlong notes: hold until the tail reaches the line\nesc ends the round':'filled = don: f or j   ring = kat: d or k\nhit when the note reaches the left circle\nlong bars = drumroll: hit either key as fast as you can\nesc ends the round'}
 $('mode').onchange=help;
@@ -144,7 +151,7 @@ function grp(id,label){const sel=$(id),g=document.createElement('div');g.classNa
   b.onclick=()=>pickOpt(id,o.value);g.append(b)}return g}
 function renderCfg(){const m=$('mode').value,cf=$('cfg');cf.innerHTML='';const t=document.createElement('div');t.className='line tabs';t.append(grp('mode'));cf.append(t);
  for(const sc of ['all','mode']){const l=document.createElement('div');l.className='line';for(const[id,lb,w]of G)if(sc=='all'?w=='all':w.split(' ').includes(m))l.append(grp(id,lb));if(l.childElementCount)cf.append(l)}
- $('foot').innerHTML=kb(KB.all)+kb(KB[m]);document.querySelectorAll('[data-t]').forEach(e=>e.textContent=tr(e.dataset.t));document.documentElement.lang=OPT.lang;$('hs').options[0].text=tr('on');$('hs').options[1].text=tr('off')}
+ $('foot').innerHTML=kb(KB.all)+kb(KB[m]);document.querySelectorAll('[data-t]').forEach(e=>e.textContent=tr(e.dataset.t));document.documentElement.lang=OPT.lang;for(const id of ['hs','jshow','cs','ar','cn','cur'])for(const o of $(id).options){o.dataset.t=o.dataset.t||o.text;o.text=tr(o.dataset.t)}}
 $('keys').onclick=()=>show('KEYBINDS\n\nanywhere   space / enter  start round\n           tab            restart round\n           esc            stop and show results\n\naim        click, z, x    hit circle (hover it)\n           hold           follow sliders, spin spinners\nmania      d f j k        lanes 1-4, hold for long notes\ntaiko      f j            don (filled)\n           d k            kat (ring)\n           any of them    drumroll bars\norbit      any key/click  hit the next tile\ncatch      left / right   move the catcher\n           shift          dash (needed for outlined fruits)\n');
 function start(){audio();const m=$('mode').value,bl=60000/+$('bpm').value;menu.hidden=true;
  const dd=PRE[$('diff').value];st={m,bl,ad:$('diff').value=='adapt',lvl:3,lmax:3,rec:[],sp:dd?dd[6]:1,dens:1,trail:+$('trail').value,tr:[],bpm:+$('bpm').value,start:performance.now()+4*bl,dur:+$('dur').value*1000,ab:-4,pops:[],combo:0,maxc:0,errs:[]};
@@ -157,13 +164,13 @@ function start(){audio();const m=$('mode').value,bl=60000/+$('bpm').value;menu.h
 let AW=[50,100,150];
 const clx=v=>Math.min(W-st.r-10,Math.max(st.r+10,v)),cly=v=>Math.min(H-st.r-10,Math.max(st.r+50,v));
 function near(a,b,from){const ang=(from??Math.random()*PI2),d=st.r*(a+Math.random()*(b-a))*(a>2?st.sp:1);return[clx(st.lx+Math.cos(ang)*d),cly(st.ly+Math.sin(ang)*d)]}
-function C(T,p){st.objs.push({k:'c',T,x:p[0],y:p[1]});st.lx=p[0];st.ly=p[1]}
+function C(T,p){st.objs.push({k:'c',T,x:p[0],y:p[1],n:++st.cn});st.lx=p[0];st.ly=p[1]}
 function S(T,p,ang,L,span,reps){L=st.r*4*(span/st.bl)*st.sp;const x1=clx(p[0]+Math.cos(ang)*L),y1=cly(p[1]+Math.sin(ang)*L),E=T+span*(reps+1),
  bend=Math.random()<.65?(Math.random()-.5)*1.6:0,qx=clx((p[0]+x1)/2-(y1-p[1])*bend*.5),qy=cly((p[1]+y1)/2+(x1-p[0])*bend*.5),o={k:'l',T,E,x:p[0],y:p[1],x1,y1,qx,qy,span,reps,tr:0,tot:0};
  o.lut=[];let len=0,px=o.x,py=o.y;for(let i=0;i<=40;i++){const[a,b]=bz(o,i/40);len+=hyp(a-px,b-py);o.lut.push([len,a,b]);px=a;py=b}
- st.objs.push(o);const ev=reps%2==0;st.lx=ev?x1:p[0];st.ly=ev?y1:p[1];return E}
+ o.n=++st.cn;st.objs.push(o);const ev=reps%2==0;st.lx=ev?x1:p[0];st.ly=ev?y1:p[1];return E}
 const pick=a=>a[Math.random()*a.length|0],rg=()=>pick([1,1,1,1,.5,.5,1.5,2]);
-function chunk(T){const b=st.bl,h=b/2,r=st.r,R=Math.random,pats=['jump','stream','double','sc','stack','tri','back','slider'];
+function chunk(T){st.cn=0;const b=st.bl,h=b/2,r=st.r,R=Math.random,pats=['jump','stream','double','sc','stack','tri','back','slider'];
  let P=st.pat=='mix'?pats[R()*pats.length|0]:st.pat;
  if(st.pat=='mix'&&R()<.08&&T>b*4&&(!st.dur||T+b*5<st.dur)){const E=T+b*4;st.objs.push({k:'s',T,E,x:W/2,y:H/2,rot:0,pa:null});st.lx=W/2;st.ly=H/2;return E+b}
  if(P=='jump'){let a=R()*PI2;for(let i=0;i<4+(R()*5|0);i++){C(T,near(5,7,a));a+=Math.PI*(.6+R()*.8);T+=b*rg()}return T}
@@ -194,19 +201,21 @@ function update(now){for(const o of st.objs){
  if(o.k=='s'){if(now>=o.T&&now<o.E&&st.down){const a=Math.atan2(st.my-o.y,st.mx-o.x);if(o.pa!=null){let d=a-o.pa;d-=PI2*Math.round(d/PI2);o.rot+=d}o.pa=a}else o.pa=null;
   if(now>=o.E&&!o.done){o.done=o.hd=1;const n=Math.abs(o.rot)/PI2,need=(o.E-o.T)/1000*1.5,q=n/need;st.spins.push(n/((o.E-o.T)/60000));award(q>=1?300:q>=.6?100:q>=.3?50:0,o.x,o.y)}}}
  st.objs=st.objs.filter(o=>!o.done)}
-function circ(x,y,r,al){cx.globalAlpha=al;cx.lineWidth=4;cx.fillStyle='#fff';cx.strokeStyle='#000';cx.beginPath();cx.arc(x,y,r,0,PI2);cx.fill();cx.stroke();cx.fillStyle='#000';cx.beginPath();cx.arc(x,y,2,0,PI2);cx.fill()}
-function ring(x,y,r,k,al){if(k<=0)return;cx.globalAlpha=al;cx.lineWidth=2;cx.beginPath();cx.arc(x,y,r*(1+3*k),0,PI2);cx.stroke()}
+function circ(x,y,r,al,n){const S=OPT.cs,fill=S=='filled';cx.globalAlpha=al;cx.lineWidth=S=='thin'?1.5:4;cx.fillStyle=fill?'#000':'#fff';cx.strokeStyle='#000';cx.beginPath();cx.arc(x,y,r,0,PI2);cx.fill();cx.stroke();
+ if(S=='target'){cx.lineWidth=2;cx.beginPath();cx.arc(x,y,r*.55,0,PI2);cx.stroke()}
+ cx.fillStyle=fill?'#fff':'#000';if(OPT.cn&&n){cx.font='bold '+Math.round(r*.7)+'px '+F;cx.textAlign='center';cx.textBaseline='middle';cx.fillText(n,x,y+1);cx.textBaseline='alphabetic'}else{cx.beginPath();cx.arc(x,y,2,0,PI2);cx.fill()}}
+function ring(x,y,r,k,al){if(k<=0||!OPT.ar)return;cx.globalAlpha=al;cx.lineWidth=2;cx.beginPath();cx.arc(x,y,r*(1+3*k),0,PI2);cx.stroke()}
 function arrow(x,y,tx,ty,r){const a=Math.atan2(ty-y,tx-x);cx.save();cx.translate(x,y);cx.rotate(a);cx.fillStyle='#000';cx.beginPath();cx.moveTo(r*.5,0);cx.lineTo(-r*.3,-r*.4);cx.lineTo(-r*.3,r*.4);cx.fill();cx.restore()}
 function aimDraw(now,t){gen(now);update(now);const r=st.r;
  for(let i=st.objs.length-1;i>=0;i--){const o=st.objs[i];if(now<o.T-st.pre)continue;
   const al=Math.min(1,(now-o.T+st.pre)/(st.pre*.4)),k=(o.T-now)/st.pre;
-  if(o.k=='c'){circ(o.x,o.y,r,al);ring(o.x,o.y,r,k,al)}
+  if(o.k=='c'){circ(o.x,o.y,r,al,o.n);ring(o.x,o.y,r,k,al)}
   else if(o.k=='l'){cx.globalAlpha=al;cx.lineCap='round';cx.strokeStyle='#000';cx.lineWidth=2*r+4;cx.beginPath();cx.moveTo(o.x,o.y);cx.quadraticCurveTo(o.qx,o.qy,o.x1,o.y1);cx.stroke();
    cx.strokeStyle='#fff';cx.lineWidth=2*r-4;cx.stroke();cx.strokeStyle='#000';cx.lineWidth=2;
    for(const[px,py]of[[o.x,o.y],[o.x1,o.y1]]){cx.beginPath();cx.arc(px,py,r,0,PI2);cx.stroke()}
    const[bx,by,s]=ball(o,now),left=o.reps-s;
    if(left>0){const e=at(o,.97),h0=at(o,.03);if(s%2)arrow(o.x,o.y,h0[0],h0[1],r);else arrow(o.x1,o.y1,e[0],e[1],r)}
-   if(!o.hd){circ(o.x,o.y,r,al);ring(o.x,o.y,r,k,al)}
+   if(!o.hd){circ(o.x,o.y,r,al,o.n);ring(o.x,o.y,r,k,al)}
    if(now>=o.T){cx.globalAlpha=1;cx.fillStyle='#000';cx.beginPath();cx.arc(bx,by,r*.55,0,PI2);cx.fill();
     if(st.down&&hyp(st.mx-bx,st.my-by)<=r*2.4){cx.lineWidth=2;cx.beginPath();cx.arc(bx,by,r*2.4,0,PI2);cx.stroke()}}}
   else{const S=Math.min(W,H)*.38;cx.globalAlpha=al;cx.lineWidth=3;cx.strokeStyle='#000';cx.beginPath();cx.arc(o.x,o.y,S,0,PI2);cx.stroke();
@@ -244,7 +253,7 @@ function maniaDraw(now){const lx=W/2-LW*2,hy=H-110,px=st.spd,u=st.bl/st.snap;
   if(y>-30){cx.fillStyle='#000';cx.fillRect(X+3,y-20,LW-6,24);cx.fillStyle='#fff';cx.fillRect(X+8,y-14,LW-16,3)}}
  cx.restore();
  const L=st.last;if(L&&performance.now()-L.t<400){cx.font='bold 22px '+F;cx.globalAlpha=1-(performance.now()-L.t)/400;
-  cx.fillText(JN[L.i]+(L.i>0&&L.i<4?(L.err<0?' early':' late'):''),W/2,hy-160);cx.globalAlpha=1;cx.font='14px '+F}
+  if(!jhide(L.i==0))cx.fillText(({0:jw(0,JN[0]),2:jw(1,JN[2]),3:jw(2,JN[3]),4:jw(3,JN[4])}[L.i]??JN[L.i])+(L.i>0&&L.i<4?(L.err<0?' early':' late'):''),W/2,hy-160);cx.globalAlpha=1;cx.font='14px '+F}
  const bx=W/2,by=hy+60;cx.fillRect(bx-MISS,by,MISS*2,1);cx.fillRect(bx-1,by-8,2,16);
  for(const e of st.errs.slice(-30))cx.fillRect(bx+e-1,by-6,2,12);
  return `acc ${mAcc().toFixed(2)}%  combo ${st.combo}  ${JN.slice(0,5).map((n,i)=>n+':'+st.j[i]).join(' ')}  UR ${(sd(st.errs)*10).toFixed(0)}`}
@@ -274,7 +283,7 @@ function taikoDraw(now){tgen(now);const hx=Math.min(160,W*.2),y=H/2,R0=26;
    cx.fillStyle='#000';for(let d=xs+10;d<xe;d+=16){cx.beginPath();cx.arc(d,y,3,0,PI2);cx.fill()}continue}
   cx.beginPath();cx.arc(x,y,R0,0,PI2);
   if(n.k){cx.fillStyle='#fff';cx.fill();cx.lineWidth=7;cx.stroke()}else{cx.fillStyle='#000';cx.fill()}}
- const L=st.last;cx.textAlign='center';if(L&&performance.now()-L.t<400){cx.font='bold 22px '+F;cx.fillStyle='#000';cx.globalAlpha=1-(performance.now()-L.t)/400;cx.fillText(['great','ok','miss','roll!'][L.i],hx,y-70);cx.globalAlpha=1;cx.font='14px '+F}
+ const L=st.last;cx.textAlign='center';if(L&&performance.now()-L.t<400&&!jhide(L.i==0)){cx.font='bold 22px '+F;cx.fillStyle='#000';cx.globalAlpha=1-(performance.now()-L.t)/400;cx.fillText([jw(0,'great'),jw(1,'ok'),jw(3,'miss'),'roll!'][L.i],hx,y-70);cx.globalAlpha=1;cx.font='14px '+F}
  const bx=W/2,by=y+90;cx.fillStyle='#000';cx.fillRect(bx-TMISS,by,TMISS*2,1);cx.fillRect(bx-1,by-8,2,16);for(const e of st.errs.slice(-30))cx.fillRect(bx+e-1,by-6,2,12);
  return `acc ${tAcc().toFixed(2)}%  combo ${st.combo}  great:${st.j[0]} ok:${st.j[1]} miss:${st.j[2]}  UR ${(sd(st.errs)*10).toFixed(0)}`}
 function taikoEnd(el){const a=tAcc(),k=`bestTaiko${st.bpm}${st.tpat}`,b=ls.get(k),nb=st.j[0]+st.j[1]>20&&a*100>b;if(nb)ls.set(k,Math.round(a*100));const m=avg(st.errs),pc=t=>t[0]+t[1]?(t[0]/(t[0]+t[1])*100).toFixed(1)+'%':'-';
@@ -287,7 +296,7 @@ function oadd(){const L=st.tiles[st.tiles.length-1],P=OPAT[st.opat],n=st.tiles.l
  L.d=L.ein+b*Math.PI;st.tiles.push({x:L.x+OL*Math.cos(L.d),y:L.y+OL*Math.sin(L.d),T:L.T+b*st.bl,ein:L.d+Math.PI,b})}
 const FR={0.5:'½',1.5:'1½',0.75:'¾',1.25:'1¼',2:'2'},frac=b=>FR[b]||(Math.abs(b-1/3)<.01?'⅓':Math.abs(b-2/3)<.01?'⅔':Math.abs(b-4/3)<.01?'1⅓':String(+b.toFixed(2)));
 function ojudge(i,e){st.j[i]++;if(i<3){st.combo++;st.maxc=Math.max(st.maxc,st.combo);st.errs.push(e);hitSound()}else st.combo=0;adapt(i==0);
- const t=st.tiles[st.k];st.pops.push({x:t.x,y:t.y,v:['perfect',e<0?'early':'late',e<0?'way early':'way late','miss'][i]+(i==0?'':''),t:performance.now(),o:1});st.k++}
+ const t=st.tiles[st.k];st.pops.push({x:t.x,y:t.y,v:[jw(0,'perfect'),e<0?'early':'late',e<0?'way early':'way late','miss'][i]+(i==0?'':''),t:performance.now(),o:1});st.k++}
 function opress(now){while(st.tiles.length<st.k+2)oadd();const e=now-st.tiles[st.k].T;if(e<-OW[2]){st.te++;return}const a=Math.abs(e);ojudge(a<=OW[0]?0:a<=OW[1]?1:2,e)}
 function oAcc(){const j=st.j,n=j[0]+j[1]+j[2]+j[3];return n?(j[0]*100+j[1]*60+j[2]*30)/n:100}
 function orbitDraw(now){while(st.tiles.length<st.k+40)oadd();
@@ -309,7 +318,7 @@ function orbitDraw(now){while(st.tiles.length<st.k+40)oadd();
  cx.fillStyle='#000';cx.beginPath();cx.arc(pv.x,pv.y,12,0,PI2);cx.fill();
  cx.fillStyle='#fff';cx.lineWidth=4;cx.beginPath();cx.arc(px,py,12,0,PI2);cx.fill();cx.stroke();
  st.pops=st.pops.filter(p=>performance.now()-p.t<600);cx.textAlign='center';cx.font='bold 15px '+F;
- for(const p of st.pops){const a=(performance.now()-p.t)/600;cx.globalAlpha=1-a;cx.fillStyle='#000';cx.fillText(p.v,p.x,p.y-30-a*14)}
+ for(const p of st.pops){if(jhide(p.v==jw(0,'perfect')))continue;const a=(performance.now()-p.t)/600;cx.globalAlpha=1-a;cx.fillStyle='#000';cx.fillText(p.v,p.x,p.y-30-a*14)}
  cx.restore();cx.globalAlpha=1;
  return `acc ${oAcc().toFixed(2)}%  combo ${st.combo}  perfect:${st.j[0]} early/late:${st.j[1]} way off:${st.j[2]} miss:${st.j[3]}  UR ${(sd(st.errs)*10).toFixed(0)}`}
 function orbitEnd(el){const a=oAcc(),m=avg(st.errs);
@@ -386,9 +395,11 @@ function loop(){requestAnimationFrame(loop);if(!st)return;cx.clearRect(0,0,W,H);
  const h=st.m=='aim'?aimDraw(now):st.m=='taiko'?taikoDraw(now):st.m=='orbit'?orbitDraw(now):st.m=='catch'?catchDraw(now):maniaDraw(now);
  cx.globalAlpha=1;cx.textAlign='center';cx.fillStyle='#000';
  if(now<0){cx.font='bold 40px '+F;cx.fillText(Math.ceil(-now/st.bl),W/2,80);cx.font='14px '+F}
- if(st.pops&&st.m!='orbit')for(const p of st.pops=st.pops.filter(p=>performance.now()-p.t<600)){const a=(performance.now()-p.t)/600;cx.globalAlpha=1-a;cx.font='bold 18px '+F;cx.fillText(p.v?p.v:'×',p.x,p.y-(st.r||0)-8-a*14)}
+ if(st.pops&&st.m!='orbit')for(const p of st.pops=st.pops.filter(p=>performance.now()-p.t<600)){const a=(performance.now()-p.t)/600;cx.globalAlpha=1-a;cx.font='bold 18px '+F;if(jhide(p.v==300))continue;cx.fillText(p.v?jw([300,100,50].indexOf(p.v),String(p.v)):jw(3,'×'),p.x,p.y-(st.r||0)-8-a*14)}
  if(st.trail&&st.m=='aim'){const T0=performance.now();st.tr=st.tr.filter(p=>T0-p[2]<180);cx.strokeStyle='#000';cx.lineCap='round';
   for(let i=1;i<st.tr.length;i++){const a=st.tr[i-1],b=st.tr[i];cx.globalAlpha=.6*(1-(T0-b[2])/180);cx.lineWidth=2+4*(1-(T0-b[2])/180);cx.beginPath();cx.moveTo(a[0],a[1]);cx.lineTo(b[0],b[1]);cx.stroke()}}
+ c.style.cursor=st.m=='aim'&&OPT.cur!='sys'?'none':'crosshair';
+ if(st.m=='aim'&&OPT.cur!='sys'){cx.globalAlpha=1;cx.strokeStyle=cx.fillStyle='#000';cx.lineWidth=3;cx.beginPath();cx.arc(st.mx,st.my,OPT.cur=='dot'?6:12,0,PI2);OPT.cur=='dot'?cx.fill():cx.stroke()}
  cx.globalAlpha=1;cx.font='14px '+F;
  hud.textContent=(st.dur?`time ${Math.max(0,(st.dur-Math.max(now,0))/1000).toFixed(1)}`:`time ${(Math.max(now,0)/1000).toFixed(0)}s (esc to stop)`)+`  ${st.bpm}bpm  `+(st.ad?`lvl ${st.lvl}  `:'')+h}
 requestAnimationFrame(loop);
